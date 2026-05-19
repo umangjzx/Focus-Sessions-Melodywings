@@ -651,53 +651,6 @@ focus-sessions/
 
 ---
 
-## 🚀 Production Deployment
-
-### Quick Start with Docker
-```bash
-# Build and start with Docker Compose
-docker-compose up -d
-
-# Check health
-curl http://localhost:8000/api/health
-curl http://localhost:3000
-```
-
-### Deployment Options
-- **Docker Compose** (local/VPS) - See [DEPLOYMENT.md](DEPLOYMENT.md)
-- **Heroku** - `git push heroku main`
-- **AWS ECS/Fargate** - See deployment guide
-- **Azure Container Instances** - See deployment guide
-- **DigitalOcean App Platform** - Docker-native deployment
-
-### Pre-Production Checklist
-Complete the [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md) before deploying.
-
-Key steps:
-1. Set `ENVIRONMENT=production` in `.env`
-2. Change `SECRET_KEY` to a strong random value
-3. Configure PostgreSQL database
-4. Set `CORS_ORIGINS` to your domain
-5. Disable documentation: `DISABLE_DOCS=true`
-6. Run migrations: `alembic upgrade head`
-7. Enable SSL/TLS with HTTPS
-8. Setup monitoring and logging
-
-For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md)
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
-- Setting up the development environment
-- Code style and standards
-- Testing requirements
-- Pull request process
-- Commit message conventions
-
----
-
 ## 🎨 Design System
 
 The app uses a custom design system built on Tailwind CSS with CSS custom properties for theming:
