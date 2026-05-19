@@ -48,8 +48,8 @@ export default function SettingsPage() {
           <input type="number" className="input-field" min={5} max={120} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
         </div>
         <div className="flex gap-2">
-          {(['dark', 'light'] as AppTheme[]).map((t) => (
-            <button key={t} type="button" onClick={() => setTheme(t)} className={`flex-1 rounded-xl py-3 capitalize ${theme === t ? 'bg-primary text-white' : 'bg-slate-700 text-slate-300'}`}>{t}</button>
+          {(['dark', 'light', 'calm-blue', 'forest-green'] as AppTheme[]).map((t) => (
+            <button key={t} type="button" onClick={() => setTheme(t)} className={`flex-1 rounded-xl py-3 capitalize ${theme === t ? 'bg-primary text-white' : 'bg-slate-700 text-slate-300'}`}>{t.replace('-', ' ')}</button>
           ))}
         </div>
         <label className="flex justify-between text-slate-300">
