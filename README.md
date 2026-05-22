@@ -8,6 +8,7 @@
 
 - [Tech Stack](#-tech-stack)
 - [Quick Start](#-quick-start)
+- [AI coach (Ollama)](#ai-coach-optional--ollama)
 - [Host & Join Meetings](#-host--join-meetings)
 - [System Architecture](#-system-architecture)
 - [Application Flows](#-application-flows)
@@ -18,19 +19,6 @@
 - [Project Structure](#-project-structure)
 - [Scripts](#-scripts)
 - [Documentation](#-documentation)
-
-- [Tech Stack](#tech-stack)
-- [Quick Start](#quick-start)
-- [Host and Join Meetings](#host-and-join-meetings)
-- [System Architecture](#system-architecture)
-- [Application Flows](#application-flows)
-- [Module-Wise Features](#module-wise-features)
-- [Backend API Reference](#backend-api-reference)
-- [Socket.IO Events (real-time)](#socketio-events-real-time)
-- [Database Tables](#database-tables)
-- [Project Structure](#project-structure)
-- [Scripts](#scripts)
-- [Documentation](#documentation)
 
 ---
 
@@ -45,6 +33,7 @@
 | **Charts** | Recharts | Analytics |
 | **Real-time client** | socket.io-client | Group timer, presence, ready |
 | **Optional video** | Jitsi (`meet.jit.si`) | Embedded WebRTC (camera/mic off by default) |
+| **AI coach (optional)** | [Ollama](https://ollama.com/) · `qwen2.5-coder:7b` | Local LLM; personalized from your app data |
 | **Backend** | FastAPI · python-socketio | REST + WebSocket on `:8000` |
 | **ORM** | SQLAlchemy 2.0 | Models & queries |
 | **Auth** | JWT · bcrypt | Bearer tokens |
@@ -86,6 +75,26 @@ SECRET_KEY=your-secret-key
 ```
 
 Startup runs `app/core/migrate.py` to create tables and patch SQLite columns.
+
+### AI coach (optional — Ollama)
+
+The coach reads **your real Focus Sessions data** (streak, tasks, sessions, settings, active session) and answers via a **chat button** (bottom-right on every logged-in page).
+
+```bash
+ollama pull qwen2.5-coder:7b
+ollama run qwen2.5-coder:7b
+```
+
+```env
+# backend/.env
+OLLAMA_ENABLED=true
+OLLAMA_MODEL=qwen2.5-coder:7b
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_TIMEOUT_SECONDS=60
+```
+
+Enable **AI focus coach** in Settings. Check: `GET /api/settings/coach/status` → `ollama_ready: true`.  
+If Ollama is off, the app uses built-in fallback messages (still personalized where possible).
 
 ---
 
@@ -138,11 +147,16 @@ flowchart TB
             TimerHook["useTimer — client countdown"]
             Ambient["AmbientSoundPlayer — Web Audio"]
         end
+        subgraph FECoach["AI coach"]
+            CoachUI["CoachChat — floating chat button"]
+            CoachCtx["coachClient.ts — page + session hints"]
+        end
         Proxy["Vite dev proxy → :8000"]
     end
 
     subgraph EXT["External (optional)"]
         Jitsi["Jitsi meet.jit.si — WebRTC video/audio"]
+        OllamaExt["Ollama :11434 — local LLM"]
     end
 
     subgraph BE["Backend — FastAPI ASGI :8000"]
@@ -166,7 +180,9 @@ flowchart TB
         subgraph SVC["Services"]
             TimerSvc["timer_service — server countdown task"]
             MeetSync["meeting_sync — full room payload"]
-            Prod["productivity · coach · achievements"]
+            CoachSvc["coach.py — Ollama chat"]
+            CoachCtxSvc["coach_context.py — user snapshot from DB"]
+            Prod["productivity · achievements"]
         end
         subgraph Core["Core"]
             JWT["security — JWT decode"]
@@ -190,7 +206,10 @@ flowchart TB
     Router --> PUB & DASH & SOLO_P & GRP_P & TASK & ANA
     GRP_P --> SockHook & MeetSvc & PhaseUI
     SOLO_P --> TimerHook & Ambient
-    DASH & SOLO_P & GRP_P & TASK --> Axios
+    DASH & SOLO_P & GRP_P & TASK & ANA --> Axios
+    Router --> CoachUI
+    CoachUI --> CoachCtx
+    CoachUI --> Axios
     GRP_P --> MeetSvc
     MeetSvc --> Axios
     Pages --> ZAuth & ZApp
@@ -206,6 +225,10 @@ flowchart TB
     REST --> Deps
     Deps --> JWT
     REST --> SVC
+    REST --> CoachSvc
+    CoachSvc --> CoachCtxSvc
+    CoachCtxSvc --> DBLayer
+    CoachSvc -->|"HTTP /api/chat"| OllamaExt
     REST --> DBLayer
     WS --> JWT
     WS --> TimerSvc
@@ -230,6 +253,7 @@ flowchart TB
 | Room membership | REST `join` + Socket `join_room` | `meeting_participants` + Socket.IO room |
 | Presence / ready | Socket.IO | `user_presence`, `is_ready`, broadcast events |
 | Video | Jitsi iframe (client only) | Same room name per `room_code`; not stored in DB |
+| AI coach | REST → Ollama | `coach_context` builds profile from DB; chat + phase tips |
 | Auth | JWT | All `/api/*` and Socket connect `auth.token` |
 
 ---
@@ -264,7 +288,7 @@ Register, login, JWT in `localStorage`, protected routes, forgot-password stub.
 
 ### 2. Dashboard
 
-Stats, weekly/daily charts, coach tip, **Host Room**, **Join Latest**.
+Stats, weekly/daily charts, personalized coach tip, **Host Room**, **Join Latest**.
 
 ### 3. Solo focus sessions
 
@@ -294,25 +318,44 @@ XP, levels, streaks, badges.
 
 ### 8. Settings & AI coach
 
-Theme, defaults, sounds, **AI focus coach** toggle.  
-**API:** `/api/settings/*`, `GET /api/settings/coach/{phase}`, `GET /api/settings/coach/status`
+Theme, defaults, sounds, **AI focus coach** toggle.
 
-**AI coach** uses local **[Ollama](https://ollama.com/)** when running (default model: `qwen2.5-coder:7b`). If Ollama is off or unreachable, the app falls back to built-in motivational messages.
+**UI**
 
-```bash
-ollama pull qwen2.5-coder:7b
-ollama run qwen2.5-coder:7b    # keep Ollama running, or it starts on first request
-```
+- **Floating chat button** (bottom-right) on all authenticated pages — open to ask anything about focus, tasks, or your next session.
+- **Inline tips** on Dashboard (`pre`), Session Setup (`pre`), Focus Mode (`mid`), Session Complete (`end`).
 
-Configure in `backend/.env`:
+**Personalization**
 
-```env
-OLLAMA_ENABLED=true
-OLLAMA_MODEL=qwen2.5-coder:7b
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-```
+Before each reply, `coach_context.py` loads a snapshot from your account:
 
-Check status: `GET /api/settings/coach/status` → `ollama_ready: true`
+| Source | Used for |
+|--------|----------|
+| Streaks / XP | Level, current & longest streak |
+| `focus_sessions` | Today & week minutes, active session, last session, recent history |
+| `tasks` | Open tasks (title, priority, estimate), overdue count |
+| `user_settings` | Default duration, Pomodoro, auto-breaks, ambient sound |
+| Analytics logic | Recommended next session length |
+| `achievements` | Recent badges |
+| Frontend hints | Current page, planned title/task/goal, in-focus flag |
+
+The LLM system prompt includes this block and is told to **use real numbers only** (no invented stats).
+
+**API**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/settings/coach/status` | `ollama_ready`, model, base URL |
+| `GET` | `/api/settings/coach/{phase}` | One-line tip: `pre` \| `mid` \| `end` \| `suggestion` |
+| `POST` | `/api/settings/coach/chat` | Multi-turn chat; body: `{ messages, client? }` |
+
+Optional query/body `client` fields: `page`, `planned_minutes`, `session_title`, `task_title`, `goal`, `in_focus_session`.
+
+Response shape: `{ "message": "...", "source": "ollama" | "fallback" | "disabled" }`.
+
+**Ollama**
+
+Default model: `qwen2.5-coder:7b`. See [Quick Start → AI coach](#ai-coach-optional--ollama). First reply after idle can take ~30–60s while the model loads.
 
 ### 9. Audio
 
@@ -330,6 +373,8 @@ Ambient sounds via Web Audio during solo focus.
 | `/meeting/:roomCode` | Live room |
 | `/meeting/:roomCode/dashboard` | Group summary |
 | `/tasks`, `/analytics`, `/achievements`, `/settings` | Productivity |
+
+**Global UI:** `CoachChat` (protected routes) — floating coach button, not a separate route.
 
 ---
 
@@ -358,7 +403,15 @@ Ambient sounds via Web Audio during solo focus.
 | `/api/sessions` | Solo focus |
 | `/api/analytics` | Stats |
 | `/api/achievements` | Badges |
-| `/api/settings` | Preferences + coach |
+| `/api/settings` | Preferences + AI coach |
+
+### AI coach — `/api/settings/coach`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/status` | Ollama reachable and model pulled |
+| `GET` | `/{phase}` | Phase tip (`pre`, `mid`, `end`, `suggestion`); optional query: `page`, `planned_minutes`, `session_title`, `task_title`, `goal`, `in_focus_session` |
+| `POST` | `/chat` | Body: `{ "messages": [{ "role", "content" }], "client": { ... } }` |
 
 Docs: http://localhost:8000/docs
 
@@ -417,15 +470,16 @@ focus-sessions/
 ├── backend/app/
 │   ├── api/          auth, tasks, sessions, meetings, sockets, analytics, achievements, settings
 │   ├── models/       user, task, session, meeting, presence, streak, achievement, settings
-│   ├── services/     timer_service, meeting_sync, productivity, coach, achievements
+│   ├── services/     timer_service, meeting_sync, coach, coach_context, productivity, achievements
+│   ├── schemas/      coach (chat request/response), settings, …
 │   ├── core/         config, database, security, migrate
 │   └── main.py       FastAPI + Socket.IO ASGI
 ├── frontend/src/
 │   ├── pages/        Dashboard, solo focus, CreateMeeting, JoinMeeting, MeetingRoom, …
-│   ├── components/   layout, focus, meeting/
+│   ├── components/   layout, focus, meeting, coach/CoachChat
 │   ├── hooks/        useTimer, useMeetingSocket, useMeetingState, …
 │   ├── services/     api.ts, meetingService.ts
-│   └── utils/        meetingUtils.ts, helpers.ts
+│   └── utils/        meetingUtils.ts, coachClient.ts, helpers.ts
 ├── setup.cmd · start.cmd
 └── README.md
 ```
@@ -455,6 +509,7 @@ focus-sessions/
 ## 🎨 Design principles
 
 - ADHD-friendly: small starts, optional video, muted defaults, minimal mode, calm copy
+- **AI coach:** local-only via Ollama; replies grounded in your tasks, streak, and session history
 - **Jitsi (optional):** `VITE_JITSI_DOMAIN=meet.yourdomain.com` in `frontend/.env`
 
 ---
