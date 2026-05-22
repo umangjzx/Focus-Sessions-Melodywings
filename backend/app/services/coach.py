@@ -200,23 +200,38 @@ CHAT_FALLBACK = [
 ]
 
 
-def _personalized_greeting(context: dict | None) -> str:
+def personalized_greeting(context: dict | None) -> str:
     ctx = context or {}
     name = ctx.get("name") or "there"
     streak = ctx.get("current_streak", 0)
     today = ctx.get("today_focus_minutes", 0)
     pending = ctx.get("pending_task_count", 0)
+    recommended = ctx.get("recommended_duration", 25)
+    tasks = ctx.get("pending_tasks") or []
+    top_task = tasks[0]["title"] if tasks else None
+
     if ctx.get("active_session"):
         title = ctx["active_session"].get("title", "your session")
         return f"Hi {name}! You're in \"{title}\" — ask me anything if you need a nudge."
+
+    if top_task and today < 30:
+        return (
+            f"Hi {name}! {streak}-day streak · {today}m today. "
+            f"Top task: \"{top_task}\" — want help starting a {recommended} min block?"
+        )
     if pending and today < 30:
         return (
-            f"Hi {name}! You have {pending} open task{'s' if pending != 1 else ''} "
-            f"and {today} min focused today — want help picking what to do next?"
+            f"Hi {name}! {pending} open task{'s' if pending != 1 else ''}, "
+            f"{today}m focused today, {streak}-day streak. What should we tackle next?"
+        )
+    if streak and today > 0:
+        return (
+            f"Hi {name}! {today}m today · {streak}-day streak · "
+            f"{ctx.get('total_sessions', 0)} sessions. What do you want to focus on?"
         )
     if streak:
-        return f"Hi {name}! {streak}-day streak — {today} min today. What do you want to focus on?"
-    return f"Hi {name}! {today} min focused today. Ask me about your tasks or next session."
+        return f"Hi {name}! {streak}-day streak — try a {recommended} min session when you're ready."
+    return f"Hi {name}! Ask me about your tasks, streak, or next session."
 
 
 def coach_chat(history: list[dict], context: dict | None = None) -> CoachResult:
@@ -234,7 +249,7 @@ def coach_chat(history: list[dict], context: dict | None = None) -> CoachResult:
         ollama_messages.append({"role": role, "content": content[:2000]})
 
     if len(ollama_messages) == 1:
-        return CoachResult(message=_personalized_greeting(context), source="fallback")
+        return CoachResult(message=personalized_greeting(context), source="fallback")
 
     llm_text = _ollama_chat(ollama_messages)
     if llm_text:

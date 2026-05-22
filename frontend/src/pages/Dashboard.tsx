@@ -2,15 +2,19 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { joinLatestMeeting } from '../services/meetingService';
 import { motion } from 'framer-motion';
-import { Play, Clock, CheckCircle2, Flame, Sparkles, TrendingUp, Crown, Users } from 'lucide-react';
+import { Play, Clock, CheckCircle2, Flame, Sparkles, TrendingUp, Crown, Users, MessageCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid } from 'recharts';
+import ChartBox from '../components/charts/ChartBox';
 import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/authStore';
 import { analyticsApi, settingsApi } from '../services/api';
 import { formatDuration } from '../utils/helpers';
+import { localCoachGreeting } from '../utils/coachGreeting';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { dashboard, setDashboard } = useAppStore();
+  const user = useAuthStore((s) => s.user);
   const [weekly, setWeekly] = useState<{ labels: string[]; minutes: number[] } | null>(null);
   const [coachMsg, setCoachMsg] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -33,21 +37,22 @@ export default function Dashboard() {
 
   useEffect(() => {
     setIsLoading(true);
-    Promise.all([
-      analyticsApi.dashboard(),
-      analyticsApi.weekly(),
-      settingsApi.coach('pre', { page: 'dashboard' }),
-    ])
-      .then(([d, w, c]) => {
+    Promise.all([analyticsApi.dashboard(), analyticsApi.weekly()])
+      .then(([d, w]) => {
         setDashboard(d.data);
         setWeekly(w.data);
-        setCoachMsg(c.data.message);
+        setCoachMsg(localCoachGreeting(d.data, user?.name));
+        settingsApi
+          .coachGreeting({ page: 'dashboard' })
+          .then((c) => setCoachMsg(c.data.message))
+          .catch(() => {});
       })
       .catch(console.error)
       .finally(() => setIsLoading(false));
-  }, [setDashboard]);
+  }, [setDashboard, user?.name]);
 
   const chartData = weekly?.labels.map((name, i) => ({ name, minutes: weekly.minutes[i] ?? 0 })) ?? [];
+  const weekTotalMinutes = chartData.reduce((sum, d) => sum + d.minutes, 0);
 
   const stats = [
     { label: "Today's Focus", value: formatDuration(dashboard?.today_focus_minutes ?? 0), icon: Clock, color: 'from-blue-500 to-blue-600' },
@@ -94,6 +99,14 @@ export default function Dashboard() {
           )}
         </div>
         <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="btn-secondary whitespace-nowrap"
+            onClick={() => window.dispatchEvent(new CustomEvent('focus-coach-open'))}
+          >
+            <MessageCircle className="h-5 w-5" />
+            Ask coach
+          </button>
           <button
             type="button"
             className="btn-primary whitespace-nowrap"
@@ -163,48 +176,56 @@ export default function Dashboard() {
       {/* Charts Section */}
       <motion.div variants={itemVariants} className="grid gap-6 lg:grid-cols-3">
         {/* Weekly Focus Chart */}
-        <div className="lg:col-span-2 card-elevated">
+        <div className="lg:col-span-2 card-elevated min-w-0">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-text flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
               Focus Time This Week
             </h2>
-            {chartData.length > 0 && (
+            {!isLoading && weekTotalMinutes > 0 && (
               <span className="text-sm text-text-muted">
-                Total: {Math.round(chartData.reduce((sum, d) => sum + d.minutes, 0) / 60)}h
+                Total: {weekTotalMinutes >= 60 ? `${Math.round(weekTotalMinutes / 60)}h` : `${weekTotalMinutes}m`}
               </span>
             )}
           </div>
           {isLoading ? (
-            <div className="h-64 bg-surface rounded-lg animate-pulse" />
+            <div className="h-[300px] bg-surface rounded-lg animate-pulse" />
+          ) : weekTotalMinutes === 0 ? (
+            <div className="flex h-[300px] flex-col items-center justify-center rounded-lg border border-dashed border-slate-600 text-center text-slate-400">
+              <p className="text-sm">No focus time logged this week yet.</p>
+              <button type="button" className="btn-primary mt-4" onClick={() => navigate('/setup')}>
+                <Play className="h-4 w-4" />
+                Start first session
+              </button>
+            </div>
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorMinutes" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
-                <YAxis stroke="#64748b" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12 }}
-                  formatter={(value) => [`${value} min`, 'Focus Time']}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="minutes" 
-                  stroke="#3b82f6" 
-                  strokeWidth={3}
-                  dot={{ fill: '#3b82f6', r: 5 }}
-                  activeDot={{ r: 7 }}
-                  fillOpacity={1} 
-                  fill="url(#colorMinutes)" 
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <ChartBox height={300}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} />
+                  <YAxis
+                    stroke="#94a3b8"
+                    fontSize={12}
+                    tickLine={false}
+                    allowDecimals={false}
+                    domain={[0, Math.max(weekTotalMinutes, 5)]}
+                  />
+                  <Tooltip
+                    contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12 }}
+                    formatter={(value) => [`${value} min`, 'Focus Time']}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="minutes"
+                    stroke="#3b82f6"
+                    strokeWidth={3}
+                    dot={{ fill: '#3b82f6', r: 5 }}
+                    activeDot={{ r: 7 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartBox>
           )}
         </div>
 
@@ -235,26 +256,36 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Daily Breakdown */}
-      <motion.div variants={itemVariants} className="card-elevated">
+      <motion.div variants={itemVariants} className="card-elevated min-w-0">
         <h2 className="text-lg font-semibold text-text mb-6">Daily Distribution</h2>
         {isLoading ? (
-          <div className="h-40 bg-surface rounded-lg animate-pulse" />
+          <div className="h-[200px] bg-surface rounded-lg animate-pulse" />
+        ) : weekTotalMinutes === 0 ? (
+          <p className="py-8 text-center text-sm text-slate-400">Charts appear after you complete a focus session.</p>
         ) : (
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={chartData}>
-              <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
-              <YAxis stroke="#64748b" fontSize={12} />
-              <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12 }} />
-              <Bar dataKey="minutes" radius={[12, 12, 0, 0]} isAnimationActive>
-                {chartData.map((_, index) => (
-                  <Cell 
-                    key={index} 
-                    fill={index === chartData.length - 1 ? '#3b82f6' : '#8b5cf6'}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <ChartBox height={200}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} />
+                <YAxis
+                  stroke="#94a3b8"
+                  fontSize={12}
+                  tickLine={false}
+                  allowDecimals={false}
+                  domain={[0, Math.max(weekTotalMinutes, 5)]}
+                />
+                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12 }} />
+                <Bar dataKey="minutes" radius={[8, 8, 0, 0]} isAnimationActive>
+                  {chartData.map((entry, index) => (
+                    <Cell
+                      key={index}
+                      fill={entry.minutes > 0 ? '#3b82f6' : '#475569'}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartBox>
         )}
       </motion.div>
     </motion.div>

@@ -7,7 +7,7 @@ from app.models.settings import UserSettings
 from app.models.user import User
 from app.schemas.coach import CoachChatRequest, CoachChatResponse, CoachClientContext
 from app.schemas.settings import SettingsResponse, SettingsUpdate
-from app.services.coach import coach_chat, coach_message, ollama_available
+from app.services.coach import coach_chat, coach_message, ollama_available, personalized_greeting
 from app.services.coach_context import build_coach_context
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -56,6 +56,35 @@ def get_coach_status(user: User = Depends(get_current_user)):
         "ollama_base_url": app_settings.ollama_base_url,
         "ollama_ready": ollama_available(),
     }
+
+
+@router.get("/coach/greeting")
+def get_coach_greeting(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    page: str | None = Query(None),
+    planned_minutes: int | None = Query(None, ge=1, le=480),
+    session_title: str | None = Query(None, max_length=255),
+    task_title: str | None = Query(None, max_length=255),
+    goal: str | None = Query(None, max_length=500),
+    in_focus_session: bool | None = Query(None),
+):
+    """Instant personalized greeting from DB (no Ollama wait)."""
+    s = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+    if not s.ai_coach_enabled:
+        return {"message": "AI coach is disabled in settings.", "source": "disabled"}
+
+    ctx = _coach_context(
+        user,
+        db,
+        page=page,
+        planned_minutes=planned_minutes,
+        session_title=session_title,
+        task_title=task_title,
+        goal=goal,
+        in_focus_session=in_focus_session,
+    )
+    return {"message": personalized_greeting(ctx), "source": "system"}
 
 
 @router.post("/coach/chat", response_model=CoachChatResponse)

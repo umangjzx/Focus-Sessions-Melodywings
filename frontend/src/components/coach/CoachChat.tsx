@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MessageCircle, Send, X, Sparkles } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { settingsApi, CoachSource } from '../../services/api';
 import { useAppStore } from '../../store/useAppStore';
+import { useAuthStore } from '../../store/authStore';
 import { buildCoachClient } from '../../utils/coachClient';
+import { localCoachGreeting } from '../../utils/coachGreeting';
 
 type ChatMessage = {
   role: 'user' | 'assistant';
   content: string;
-  source?: CoachSource;
+  source?: CoachSource | 'system';
 };
 
 export default function CoachChat() {
@@ -17,6 +20,7 @@ export default function CoachChat() {
   const location = useLocation();
   const settings = useAppStore((s) => s.settings);
   const dashboard = useAppStore((s) => s.dashboard);
+  const user = useAuthStore((s) => s.user);
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -28,29 +32,37 @@ export default function CoachChat() {
   const coachEnabled = settings?.ai_coach_enabled ?? true;
 
   useEffect(() => {
-    if (open && coachEnabled) {
-      settingsApi
-        .coachStatus()
-        .then((r) => setOllamaReady(r.data.ollama_ready))
-        .catch(() => setOllamaReady(false));
+    const openCoach = () => setOpen(true);
+    window.addEventListener('focus-coach-open', openCoach);
+    return () => window.removeEventListener('focus-coach-open', openCoach);
+  }, []);
 
-      if (!welcomedRef.current) {
-        welcomedRef.current = true;
-        const client = buildCoachClient(location.pathname);
-        settingsApi
-          .coach('pre', client)
-          .then((r) => setMessages([{ role: 'assistant', content: r.data.message, source: r.data.source }]))
-          .catch(() => {
-            setMessages([
-              {
-                role: 'assistant',
-                content: 'Hi! Ask me about your tasks, streak, or next focus session.',
-              },
-            ]);
-          });
-      }
-    }
-  }, [open, coachEnabled, location.pathname, dashboard]);
+  useEffect(() => {
+    if (!open || !coachEnabled) return;
+
+    settingsApi
+      .coachStatus()
+      .then((r) => setOllamaReady(r.data.ollama_ready))
+      .catch(() => setOllamaReady(false));
+
+    if (welcomedRef.current) return;
+    welcomedRef.current = true;
+
+    const client = buildCoachClient(location.pathname);
+    const instant =
+      localCoachGreeting(dashboard, user?.name) ||
+      'Hi! Ask me about your tasks, streak, or next focus session.';
+    setMessages([{ role: 'assistant', content: instant, source: 'system' }]);
+
+    settingsApi
+      .coachGreeting(client)
+      .then((r) => {
+        if (r.data.message) {
+          setMessages([{ role: 'assistant', content: r.data.message, source: r.data.source }]);
+        }
+      })
+      .catch(() => {});
+  }, [open, coachEnabled, location.pathname, dashboard, user?.name]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -90,7 +102,8 @@ export default function CoachChat() {
         ...prev,
         {
           role: 'assistant',
-          content: "I couldn't reach the coach right now. Check that the backend and Ollama are running.",
+          content:
+            "I couldn't reach the coach right now. Check that the backend is running. Ollama is optional for chat.",
           source: 'fallback',
         },
       ]);
@@ -99,15 +112,15 @@ export default function CoachChat() {
     }
   }
 
-  return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3">
+  const ui = (
+    <div className="fixed bottom-4 right-4 z-[200] flex flex-col items-end gap-3">
       <AnimatePresence>
         {open && (
           <motion.div
             initial={{ opacity: 0, y: 16, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
-            className="pointer-events-auto flex h-[min(520px,70vh)] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-slate-600/80 bg-slate-900/95 shadow-2xl backdrop-blur-md"
+            className="flex h-[min(520px,70vh)] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-slate-600/80 bg-slate-900/98 shadow-2xl backdrop-blur-md"
           >
             <header className="flex items-center justify-between border-b border-slate-700/80 px-4 py-3">
               <div className="flex items-center gap-2">
@@ -118,10 +131,10 @@ export default function CoachChat() {
                     {!coachEnabled
                       ? 'Disabled in settings'
                       : ollamaReady === null
-                        ? 'Checking…'
+                        ? 'Checking AI…'
                         : ollamaReady
-                          ? 'AI · Ollama'
-                          : 'Offline · built-in tips'}
+                          ? 'Personalized · Ollama'
+                          : 'Personalized · offline AI'}
                   </p>
                 </div>
               </div>
@@ -136,9 +149,6 @@ export default function CoachChat() {
             </header>
 
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
-              {messages.length === 0 && !loading && (
-                <p className="text-sm text-slate-500">Loading coach with your stats…</p>
-              )}
               {messages.map((m, i) => (
                 <div
                   key={`${m.role}-${i}`}
@@ -155,9 +165,7 @@ export default function CoachChat() {
                   </div>
                 </div>
               ))}
-              {loading && (
-                <p className="text-xs text-slate-500">Coach is thinking…</p>
-              )}
+              {loading && <p className="text-xs text-slate-500">Coach is thinking…</p>}
               <div ref={bottomRef} />
             </div>
 
@@ -208,11 +216,14 @@ export default function CoachChat() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setOpen((v) => !v)}
-        className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-white shadow-lg shadow-primary/40"
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-white shadow-lg shadow-primary/40"
         aria-label={open ? 'Close focus coach' : 'Open focus coach chat'}
+        title="Chat with your focus coach"
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
       </motion.button>
     </div>
   );
+
+  return createPortal(ui, document.body);
 }

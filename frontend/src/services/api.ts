@@ -165,6 +165,10 @@ export const settingsApi = {
     api.get<{ message: string; source?: CoachSource }>(`/settings/coach/${phase}`, {
       params: client,
     }),
+  coachGreeting: (client?: CoachClientParams) =>
+    api.get<{ message: string; source: CoachSource | 'system' }>('/settings/coach/greeting', {
+      params: client,
+    }),
   coachStatus: () =>
     api.get<{
       ollama_enabled: boolean;
