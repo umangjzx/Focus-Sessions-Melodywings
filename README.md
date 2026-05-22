@@ -1,6 +1,6 @@
 # 🧠 Focus Sessions
 
-> An ADHD-friendly productivity web application with Pomodoro timers, ambient soundscapes, intelligent task management, session analytics, gamified rewards, and **group focus rooms** — built to help neurodivergent users stay focused alone or together.
+> An ADHD-friendly productivity web application with Pomodoro timers, ambient soundscapes, task management, analytics, gamification, and **group focus rooms** with optional video — built for solo focus and quiet accountability together.
 
 ---
 
@@ -9,22 +9,12 @@
 - [Tech Stack](#-tech-stack)
 - [Quick Start](#-quick-start)
 - [Host & Join Meetings](#-host--join-meetings)
-- [Architecture Overview](#-architecture-overview)
-- [Application Flow](#-application-flow)
+- [System Architecture](#-system-architecture)
+- [Application Flows](#-application-flows)
 - [Module-Wise Features](#-module-wise-features)
-  - [Authentication](#1--authentication-module)
-  - [Dashboard](#2--dashboard-module)
-  - [Solo Focus Sessions](#3--solo-focus-session-module)
-  - [Group Focus Rooms](#4--group-focus-rooms-module)
-  - [Task Manager](#5--task-manager-module)
-  - [Analytics](#6--analytics-module)
-  - [Gamification](#7--gamification-module)
-  - [Settings](#8--settings-module)
-  - [Audio](#9--audio-module)
-- [Component Map](#-component-map)
 - [Backend API Reference](#-backend-api-reference)
 - [Socket.IO Events](#-socketio-events-real-time)
-- [Database Schema](#-database-schema)
+- [Database Tables](#-database-tables)
 - [Project Structure](#-project-structure)
 - [Scripts](#-scripts)
 - [Documentation](#-documentation)
@@ -35,17 +25,17 @@
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Frontend** | React 18 · TypeScript · Vite | SPA framework & build tooling |
-| **Styling** | Tailwind CSS · Framer Motion | Utility-first CSS & animations |
-| **State** | Zustand | Lightweight global state management |
-| **Forms** | React Hook Form · Zod | Form handling & schema validation |
-| **Charts** | Recharts | Analytics visualizations |
-| **Real-time** | Socket.IO Client | Live group timers, presence, ready signals |
-| **Backend** | FastAPI · Python 3.11+ | REST API + WebSocket server |
-| **Real-time** | python-socketio | Group meeting sync & host controls |
-| **ORM** | SQLAlchemy 2.0 | Database abstraction |
-| **Auth** | JWT (python-jose) · bcrypt | Token-based authentication |
-| **Database** | SQLite (dev) / PostgreSQL (prod) | Data persistence |
+| **Frontend** | React 18 · TypeScript · Vite | SPA on `:5173` |
+| **Styling** | Tailwind CSS · Framer Motion | UI & motion |
+| **State** | Zustand | Auth + app state |
+| **Forms** | React Hook Form · Zod | Validation |
+| **Charts** | Recharts | Analytics |
+| **Real-time client** | socket.io-client | Group timer, presence, ready |
+| **Optional video** | Jitsi (`meet.jit.si`) | Embedded WebRTC (camera/mic off by default) |
+| **Backend** | FastAPI · python-socketio | REST + WebSocket on `:8000` |
+| **ORM** | SQLAlchemy 2.0 | Models & queries |
+| **Auth** | JWT · bcrypt | Bearer tokens |
+| **Database** | SQLite (dev) / PostgreSQL (prod) | Persistence |
 
 ---
 
@@ -53,425 +43,340 @@
 
 **Prerequisites:** Python 3.11+, Node.js 18+
 
-From Windows Command Prompt:
-
 ```cmd
-setup.cmd          # Creates venv, installs deps, migrates DB, seeds demo data
-start.cmd          # Starts backend + frontend, opens browser
+setup.cmd          # venv, deps, migrate DB, seed demo data
+start.cmd          # backend + frontend, open browser
 ```
 
-**Demo login (seeded):** `demo@focus.local` / `demo1234`
+**Demo login:** `demo@focus.local` / `demo1234`
 
-### Manual Setup
+### Manual setup
 
 ```bash
-# Backend (REST + Socket.IO on :8000)
-cd backend
-python -m venv venv
-venv\Scripts\activate
+# Backend — REST + Socket.IO
+cd backend && python -m venv venv && venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
-# Frontend (separate terminal — proxies /api and /socket.io)
-cd frontend
-npm install
-npm run dev
+# Frontend — proxies /api and /socket.io to :8000
+cd frontend && npm install && npm run dev
 ```
 
-Open http://localhost:5173 — register, start a solo session, or host a group room.
-
-## 🧩 Host & Join Meetings
-
-Quick steps to try group focus locally:
-
-1. Start backend and frontend (see Quick Start).
-2. Register and log in with `demo@focus.local` / `demo1234` or your account.
-3. Go to `/create-meeting` (or click Create Room) and create a room.
-4. Copy the room code or invite link and open it in another browser/incognito.
-5. Join as a participant and tap "I'm ready". Host clicks "Start Focus Session" to begin.
-
-The seed script (`backend/seed.py`) inserts the demo user and example data if the DB is empty.
+Open http://localhost:5173
 
 ### PostgreSQL (optional)
 
-Set in `backend/.env`:
-
 ```env
+# backend/.env
 DATABASE_URL=postgresql://user:pass@localhost:5432/focus_sessions
 SECRET_KEY=your-secret-key
 ```
 
-On startup, `app/core/migrate.py` creates missing tables and adds new SQLite columns automatically.
+Startup runs `app/core/migrate.py` to create tables and patch SQLite columns.
 
 ---
 
-## 🏗 Architecture Overview
+## 🧩 Host & Join Meetings
 
-```mermaid
-graph TB
-    subgraph Frontend ["Frontend (React + Vite — :5173)"]
-        Pages["Pages Layer"]
-        Hooks["Meeting Hooks (Socket.IO)"]
-        Store["Zustand Store"]
-        API["API Service (Axios)"]
-    end
-
-    subgraph Backend ["Backend (FastAPI + Socket.IO — :8000)"]
-        Routes["REST Routers"]
-        Sockets["Socket.IO Handlers"]
-        Services["Business Logic + Timer"]
-        Models["SQLAlchemy Models"]
-    end
-
-    subgraph Database ["Database"]
-        DB["SQLite / PostgreSQL"]
-    end
-
-    Pages --> Hooks
-    Pages --> Store
-    Pages --> API
-    Hooks -->|WebSocket| Sockets
-    API -->|"/api/*"| Routes
-    Routes --> Services
-    Sockets --> Services
-    Services --> Models
-    Models --> DB
-```
+1. Start backend and frontend.
+2. Log in (`demo@focus.local` / `demo1234` or register).
+3. **Host:** `/create-meeting` → copy code or invite link.
+4. **Join:** `/join-meeting`, **Join Latest**, or `?code=ABC123` in the URL.
+5. Participants tap **I'm ready** → host **Start session** → shared timer runs.
+6. Optional: **Open video** (Jitsi, muted by default).
 
 ---
 
-## 🔄 Application Flow
+## 🏗 System Architecture
 
-### Solo focus journey
-
-```mermaid
-flowchart TD
-    A["Landing"] --> B["Login / Register"]
-    B --> C["Dashboard"]
-    C --> D["Session Setup"]
-    D --> E["Focus Mode"]
-    E --> F["Break Mode"]
-    E --> G["Session Complete"]
-    F --> E
-    G --> C
-```
-
-### Group focus journey
+Single end-to-end view: clients, frontend, API gateway, backend services, real-time layer, optional video, and database.
 
 ```mermaid
-flowchart TD
-    H["Dashboard"] --> I["Host Room OR Join Latest"]
-    I --> J["Create Meeting / Join Meeting"]
-    J --> K["Meeting Room"]
-    K --> L["Participants mark I'm ready"]
-    L --> M["Host starts shared timer"]
-    M --> N["Server timer ticks via Socket.IO"]
-    N --> O["Meeting Complete Summary"]
-    O --> H
+flowchart TB
+    subgraph Clients["Clients (Browser)"]
+        U1["User A — Host"]
+        U2["User B — Participant"]
+    end
 
-    I2["Invite link with ?code=ABC123"] --> J
+    subgraph FE["Frontend — React + Vite :5173"]
+        direction TB
+        Router["App.tsx · React Router"]
+        subgraph Pages["Pages"]
+            PUB["Landing · Login · Register"]
+            DASH["Dashboard"]
+            SOLO_P["SessionSetup · FocusMode · BreakMode · SessionComplete"]
+            GRP_P["CreateMeeting · JoinMeeting · MeetingRoom · MeetingDashboard"]
+            TASK["TaskManager"]
+            ANA["Analytics · Achievements · Settings"]
+        end
+        subgraph FEState["State & Data"]
+            ZAuth["authStore — JWT in localStorage"]
+            ZApp["useAppStore — settings, active solo session"]
+            Axios["api.ts — Axios + Bearer interceptor"]
+        end
+        subgraph FEGroup["Group focus (real-time)"]
+            SockHook["useMeetingSocket — connect, join_room, reconnect"]
+            StateHook["useMeetingState · useMeetingTimer"]
+            PresHook["useParticipantPresence — online + ready"]
+            MeetSvc["meetingService.ts"]
+            PhaseUI["MeetingPhaseBar · MeetingVideoCall"]
+        end
+        subgraph FESolo["Solo focus"]
+            TimerHook["useTimer — client countdown"]
+            Ambient["AmbientSoundPlayer — Web Audio"]
+        end
+        Proxy["Vite dev proxy → :8000"]
+    end
+
+    subgraph EXT["External (optional)"]
+        Jitsi["Jitsi meet.jit.si — WebRTC video/audio"]
+    end
+
+    subgraph BE["Backend — FastAPI ASGI :8000"]
+        direction TB
+        ASGI["socketio.ASGIApp wraps FastAPI app"]
+        subgraph REST["REST /api/*"]
+            RAuth["auth — register, login, me"]
+            RTasks["tasks — CRUD, bulk"]
+            RSess["sessions — solo start/pause/complete"]
+            RMeet["meetings — create, join, join-latest, state, summary"]
+            RAnal["analytics — dashboard, weekly, heatmap"]
+            RAch["achievements"]
+            RSet["settings + AI coach"]
+        end
+        subgraph WS["Socket.IO handlers — sockets.py"]
+            WJoin["join_room / leave_room / request_sync"]
+            WReady["mark_ready"]
+            WHost["start_meeting · pause_meeting · resume_meeting"]
+            WEmit["emit: timer_tick, meeting_started, participant_online, ready_update"]
+        end
+        subgraph SVC["Services"]
+            TimerSvc["timer_service — server countdown task"]
+            MeetSync["meeting_sync — full room payload"]
+            Prod["productivity · coach · achievements"]
+        end
+        subgraph Core["Core"]
+            JWT["security — JWT decode"]
+            DBLayer["SQLAlchemy SessionLocal"]
+            Migr["migrate.py — schema patches"]
+        end
+        Deps["deps.py — get_current_user"]
+    end
+
+    subgraph DB["Database — SQLite / PostgreSQL"]
+        TUsers["users"]
+        TTasks["tasks · subtasks"]
+        TSess["focus_sessions · session_notes"]
+        TMeet["meetings · meeting_participants"]
+        TPres["user_presence"]
+        TGam["streaks · achievements · user_settings"]
+    end
+
+    U1 --> Router
+    U2 --> Router
+    Router --> PUB & DASH & SOLO_P & GRP_P & TASK & ANA
+    GRP_P --> SockHook & MeetSvc & PhaseUI
+    SOLO_P --> TimerHook & Ambient
+    DASH & SOLO_P & GRP_P & TASK --> Axios
+    GRP_P --> MeetSvc
+    MeetSvc --> Axios
+    Pages --> ZAuth & ZApp
+    Axios --> Proxy
+    SockHook --> Proxy
+    PhaseUI -->|"optional Open video"| Jitsi
+
+    Proxy -->|"/api/* HTTP"| ASGI
+    Proxy -->|"/socket.io WebSocket"| ASGI
+
+    ASGI --> REST
+    ASGI --> WS
+    REST --> Deps
+    Deps --> JWT
+    REST --> SVC
+    REST --> DBLayer
+    WS --> JWT
+    WS --> TimerSvc
+    WS --> MeetSync
+    TimerSvc --> WEmit
+    MeetSync --> DBLayer
+    SVC --> DBLayer
+    DBLayer --> TUsers & TTasks & TSess & TMeet & TPres & TGam
+    Migr --> DB
+
+    WJoin -->|"enter_room meeting_{id}"| WEmit
+    WHost --> TimerSvc
+    TimerSvc -->|"every 1s"| WEmit
 ```
 
-### Group room phases
+### Architecture notes
 
-| Phase | Status | What users see |
-|-------|--------|----------------|
-| **Waiting** | `WAITING` | Ready buttons, host picks duration |
-| **Focus** | `RUNNING` | Shared countdown timer |
-| **Paused** | `PAUSED` | Host paused for everyone |
-| **Done** | `COMPLETED` | Summary screen |
+| Path | Protocol | Responsibility |
+|------|----------|----------------|
+| Solo focus timer | REST + client `useTimer` | Session rows in `focus_sessions`; XP/streak on complete |
+| Group focus timer | Socket.IO + `timer_service` | Server owns `remaining_time`; clients render `timer_tick` |
+| Room membership | REST `join` + Socket `join_room` | `meeting_participants` + Socket.IO room |
+| Presence / ready | Socket.IO | `user_presence`, `is_ready`, broadcast events |
+| Video | Jitsi iframe (client only) | Same room name per `room_code`; not stored in DB |
+| Auth | JWT | All `/api/*` and Socket connect `auth.token` |
+
+---
+
+## 🔄 Application Flows
+
+### Solo focus
+
+`Landing` → `Login/Register` → `Dashboard` → `Session Setup` → `Focus Mode` → (`Break Mode` if Pomodoro) → `Session Complete` → mood/XP → `Dashboard`
+
+### Group focus
+
+`Dashboard` → **Host Room** or **Join Latest** / invite link → `Meeting Room` → **I'm ready** → host **Start** → shared timer (Socket.IO) → optional **Jitsi video** → `Meeting Dashboard` summary
+
+### Group phases
+
+| Phase | Status | UI |
+|-------|--------|-----|
+| Waiting | `WAITING` | Ready buttons, host picks duration |
+| Focus | `RUNNING` | Shared countdown |
+| Paused | `PAUSED` | Host paused all |
+| Done | `COMPLETED` | Summary page |
 
 ---
 
 ## 📦 Module-Wise Features
 
-### 1. 🔐 Authentication Module
+### 1. Authentication
 
-| Feature | Description |
-|---------|-------------|
-| Registration | Name, email, password with Zod validation |
-| Login | Email + password → JWT stored in `localStorage` |
-| Protected routes | Unauthenticated users redirected to login |
-| Forgot password | Reset token flow |
+Register, login, JWT in `localStorage`, protected routes, forgot-password stub.  
+**API:** `/api/auth/*`
 
-**Endpoints:** `POST /api/auth/register`, `login`, `GET /api/auth/me`, `POST /api/auth/logout`
+### 2. Dashboard
 
----
+Stats, weekly/daily charts, coach tip, **Host Room**, **Join Latest**.
 
-### 2. 📊 Dashboard Module
+### 3. Solo focus sessions
 
-| Feature | Description |
-|---------|-------------|
-| Stats cards | Today's focus, tasks done, streak, total sessions |
-| Charts | Weekly line chart + daily bar distribution |
-| Smart recommendation | Suggested session duration |
-| AI coach message | Contextual pre-session tip |
-| **Host a Focus Room** | Create group session as host |
-| **Join Latest Focus Room** | One-click join most recent active room |
+Setup (duration, task, Pomodoro, ambient, strict mode), 3-2-1 countdown, pause/resume, break, complete with mood/XP/badges.  
+**API:** `/api/sessions/*`
 
----
+### 4. Group focus rooms
 
-### 3. 🎯 Solo Focus Session Module
+Host-controlled timer, ready signals, invite links, reconnect sync, phase bar, minimal mode, optional Jitsi video.  
+**Pages:** `CreateMeeting`, `JoinMeeting`, `MeetingRoom`, `MeetingDashboard`  
+**API:** `/api/meetings/*` · **Socket:** see below
 
-| Feature | Description |
-|---------|-------------|
-| Session setup | Title, duration, task link, Pomodoro, ambient sound, strict mode |
-| 3-2-1 countdown | Gentle start before timer runs |
-| Focus timer | Full-screen progress ring |
-| Pause / resume | Synced to backend session record |
-| Break mode | Optional Pomodoro breaks |
-| Session complete | Mood, notes, XP, streak, badges |
+### 5. Task manager
 
-**Endpoints:** `POST /api/sessions/start`, `pause`, `resume`, `complete`, `GET /api/sessions/history`
+CRUD, filters, subtasks, bulk actions, link to solo sessions.  
+**API:** `/api/tasks/*`
 
----
+### 6. Analytics
 
-### 4. 👥 Group Focus Rooms Module
+Dashboard stats, weekly/monthly, heatmap.  
+**API:** `/api/analytics/*`
 
-**Purpose:** Body-doubling style group sessions with a **host-controlled shared timer** and gentle UX for ADHD users.
+### 7. Gamification
 
-#### Host flow
+XP, levels, streaks, badges.  
+**API:** `/api/achievements`
 
-1. **Host Room** (`/create-meeting`) — name the room, get a room code
-2. **Copy invite** — message includes code + link (`/join-meeting?code=XXXXXX`)
-3. Enter **Meeting Room** — see who is online and who is ready
-4. Choose duration (15–60 min) → **Start session** for everyone
-5. **Pause / Resume** — affects all participants
-6. On complete → **Meeting Dashboard** summary
+### 8. Settings
 
-#### Participant flow
+Theme, defaults, sounds, coach toggle.  
+**API:** `/api/settings/*`
 
-1. **Join Latest** (dashboard or sidebar) or open invite link
-2. **Join preview** — see room title, host, online/ready counts before entering
-3. Tap **I'm ready** when set to focus
-4. Wait for host to start — shared timer syncs via server
-5. **Minimal mode** (eye icon) — hide sidebar, timer-only view
+### 9. Audio
 
-#### Gentle UX features
+Ambient sounds via Web Audio during solo focus.
 
-| Feature | Description |
-|---------|-------------|
-| **I'm ready** | Participants signal readiness; host sees `X/Y ready` |
-| **Phase bar** | Waiting → Focus → Paused → Done |
-| **Invite link** | Shareable URL with room code pre-filled |
-| **Reconnect** | Auto-rejoin + timer resync from server state |
-| **Live indicator** | Green “Live” when Socket.IO connected |
-| **Optional video** | Jitsi embed — camera/mic **off by default**; open only if wanted |
-| **Join latest** | `POST /api/meetings/join-latest` picks newest active room |
-| **Server timer** | Authoritative countdown; clients display ticks |
+### Frontend routes (reference)
 
-**Key pages**
-
-| Page | Route | Role |
-|------|-------|------|
-| `CreateMeeting` | `/create-meeting` | Host creates room |
-| `JoinMeeting` | `/join-meeting` | Preview + join latest or by code |
-| `MeetingRoom` | `/meeting/:roomCode` | Live room + timer |
-| `MeetingDashboard` | `/meeting/:roomCode/dashboard` | Post-session summary |
-
-**Hooks & services**
-
-| File | Role |
-|------|------|
-| `hooks/useMeetingSocket.ts` | Connect, join room, reconnect, sync |
-| `hooks/useMeetingState.ts` | Status from socket events |
-| `hooks/useMeetingTimer.ts` | `timer_tick` display |
-| `hooks/useParticipantPresence.ts` | Online + ready state |
-| `services/meetingService.ts` | REST helpers |
-| `components/meeting/MeetingPhaseBar.tsx` | Phase stepper UI |
-| `utils/meetingUtils.ts` | Invite URLs, timer format, phases |
-| `components/meeting/MeetingVideoCall.tsx` | Optional Jitsi video (off by default) |
-
-#### Optional video calls
-
-Group rooms can open an **optional video panel** powered by [Jitsi](https://jitsi.org/) (`meet.jit.si` by default). Video is **not required** for focus — the shared timer still runs over Socket.IO.
-
-- **Open video** in the meeting room → same Jitsi room name per focus room code
-- **Mic and camera start muted** (less pressure for ADHD users)
-- **Open in new tab** fallback if the embed fails
-
-To use your own Jitsi server, set in `frontend/.env`:
-
-```env
-VITE_JITSI_DOMAIN=meet.yourdomain.com
-```
-
-For production at scale, consider [LiveKit](https://livekit.io/) or [Daily.co](https://www.daily.co/) (API keys, TURN servers, recording).
-
----
-
-### 5. 📋 Task Manager Module
-
-Full CRUD, filters, due dates, priorities, subtasks, bulk actions. Link tasks to solo focus sessions.
-
-**Endpoints:** `GET/POST/PUT/DELETE /api/tasks`, `POST /api/tasks/bulk`
-
----
-
-### 6. 📈 Analytics Module
-
-Dashboard stats, weekly/monthly charts, heatmap, session history.
-
-**Endpoints:** `GET /api/analytics/dashboard`, `weekly`, `monthly`, `heatmap`
-
----
-
-### 7. 🏆 Gamification Module
-
-XP, levels, streaks, achievement badges on session complete.
-
-**Endpoints:** `GET /api/achievements`
-
----
-
-### 8. ⚙️ Settings Module
-
-Themes, default duration, Pomodoro defaults, sounds, notifications, AI coach toggle.
-
-**Endpoints:** `GET/PUT /api/settings`, `GET /api/settings/coach/{phase}`
-
----
-
-### 9. 🎵 Audio Module
-
-Ambient sounds (rain, brown/white noise, ocean, forest, café) via Web Audio API during solo focus.
-
----
-
-## 🗺 Component Map
-
-```mermaid
-graph TD
-    App["App.tsx"]
-    App --> Landing & Auth["Landing · Login · Register"]
-    App --> Protected["ProtectedRoute"]
-    Protected --> Layout["Layout (Sidebar)"]
-    Protected --> Solo["FocusMode · BreakMode · SessionComplete"]
-    Protected --> Group["MeetingRoom (fullscreen layout optional)"]
-
-    Layout --> Dashboard
-    Layout --> SessionSetup
-    Layout --> CreateMeeting
-    Layout --> JoinMeeting
-    Layout --> MeetingDashboard
-    Layout --> TaskManager
-    Layout --> Analytics
-    Layout --> Achievements
-    Layout --> Settings
-```
-
-**Sidebar navigation:** Home · Focus · **Host Room** · **Join Latest** · Tasks · Stats · Rewards · Settings
+| Route | Page |
+|-------|------|
+| `/welcome` | Landing |
+| `/login`, `/register` | Auth |
+| `/` | Dashboard |
+| `/setup`, `/focus`, `/break`, `/complete` | Solo pipeline |
+| `/create-meeting`, `/join-meeting` | Group entry |
+| `/meeting/:roomCode` | Live room |
+| `/meeting/:roomCode/dashboard` | Group summary |
+| `/tasks`, `/analytics`, `/achievements`, `/settings` | Productivity |
 
 ---
 
 ## 🔌 Backend API Reference
 
-### Meetings (group focus) — prefix `/api/meetings`
+### Meetings — `/api/meetings`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/create?title=` | Create room; host auto-joins as participant and receives preview data |
-| `GET` | `/latest/available` | Preview newest joinable room (if any) |
-| `POST` | `/join-latest` | Join the newest available active room |
-| `POST` | `/join/{room_code}` | Join a specific room by room code |
-| `GET` | `/{room_code}` | Room preview metadata (title, host, counts, status) |
-| `GET` | `/{room_code}/state` | Full sync state (timer, participants, ready counts) |
-| `GET` | `/{room_code}/summary` | Post-session summary (focused minutes, host, counts) |
-| `GET` | `/{room_code}/participants` | Participant list with online/ready flags |
-| `POST` | `/{room_code}/start?duration_minutes=` | Host-only: start the meeting; returns `started_at` and `remaining_seconds` |
+| `POST` | `/create?title=` | Create room; host joins |
+| `GET` | `/latest/available` | Newest joinable room |
+| `POST` | `/join-latest` | Join newest active room |
+| `POST` | `/join/{room_code}` | Join by code |
+| `GET` | `/{room_code}` | Preview metadata |
+| `GET` | `/{room_code}/state` | Full sync state |
+| `GET` | `/{room_code}/summary` | Post-session summary |
+| `GET` | `/{room_code}/participants` | List with online/ready |
+| `POST` | `/{room_code}/start?duration_minutes=` | REST start (host) |
 
-All meeting routes require `Authorization: Bearer <token>`.
-
-### Other APIs
+### Other prefixes
 
 | Prefix | Purpose |
 |--------|---------|
-| `/api/auth` | Register, login, me, logout |
-| `/api/tasks` | Task CRUD + bulk |
-| `/api/sessions` | Solo focus lifecycle |
-| `/api/analytics` | Stats and charts |
+| `/api/auth` | Auth |
+| `/api/tasks` | Tasks |
+| `/api/sessions` | Solo focus |
+| `/api/analytics` | Stats |
 | `/api/achievements` | Badges |
-| `/api/settings` | User preferences + coach |
+| `/api/settings` | Preferences + coach |
 
-Interactive docs: http://localhost:8000/docs
+Docs: http://localhost:8000/docs
 
 ---
 
 ## ⚡ Socket.IO Events (real-time)
 
-Connect to the same origin as the API (Vite proxies `/socket.io` → `:8000` in dev).
+**Connect:** `auth: { token: "<focus_token>" }` · Vite proxies `/socket.io` → `:8000`
 
-**Auth:** pass JWT in connection `auth: { token: "<focus_token>" }`
+**Client → server**
 
-| Event (client → server) | Payload | Description |
-|-------------------------|---------|-------------|
-| `join_room` | `{ room_code }` | Enter Socket.IO room; returns `sync` in ack |
-| `leave_room` | `{ room_code }` | Leave room |
-| `request_sync` | `{ room_code }` | Request full state (reconnect) |
-| `mark_ready` | `{ room_code, ready: bool }` | Toggle ready status |
-| `start_meeting` | `{ room_code, duration_minutes }` | Host only — start timer |
-| `pause_meeting` | `{ room_code }` | Host only |
-| `resume_meeting` | `{ room_code }` | Host only |
+| Event | Payload |
+|-------|---------|
+| `join_room` | `{ room_code }` → ack includes `sync` |
+| `leave_room` | `{ room_code }` |
+| `request_sync` | `{ room_code }` |
+| `mark_ready` | `{ room_code, ready }` |
+| `start_meeting` | `{ room_code, duration_minutes }` |
+| `pause_meeting` / `resume_meeting` | `{ room_code }` |
 
-| Event (server → client) | Description |
-|-------------------------|-------------|
-| `meeting_sync` | Full room state |
-| `meeting_started` | Session began |
-| `timer_tick` | `{ remaining_seconds, status }` every second |
-| `meeting_paused` / `meeting_resumed` | Host controls |
-| `meeting_completed` | Timer hit zero |
+**Server → client**
+
+| Event | Purpose |
+|-------|---------|
+| `meeting_sync` | Full state (reconnect) |
+| `meeting_started` | Focus began |
+| `timer_tick` | `remaining_seconds` each second |
+| `meeting_paused` / `meeting_resumed` | Host control |
+| `meeting_completed` | Timer ended |
 | `participant_online` / `participant_offline` | Presence |
-| `ready_update` | Someone toggled ready |
+| `ready_update` | Ready count changed |
 
 ---
 
-## 🗄 Database Schema
+## 🗄 Database Tables
 
-Core tables plus **group focus**:
+| Table | Purpose |
+|-------|---------|
+| `users` | Accounts |
+| `tasks`, `subtasks` | Task manager |
+| `focus_sessions`, `session_notes` | Solo focus history |
+| `meetings` | Group rooms (`room_code`, `status`, `remaining_time`, …) |
+| `meeting_participants` | Who joined; `is_ready` |
+| `user_presence` | Socket online state per meeting |
+| `streaks`, `achievements` | Gamification |
+| `user_settings` | Preferences |
 
-```mermaid
-erDiagram
-    users ||--o{ focus_sessions : starts
-    users ||--o{ meetings : hosts
-    users ||--o{ meeting_participants : joins
-    meetings ||--o{ meeting_participants : has
-    meetings ||--o{ user_presence : tracks
-    users ||--o{ tasks : creates
-    users ||--|| user_settings : configures
-    users ||--|| streaks : maintains
-
-    meetings {
-        int id PK
-        string title
-        string room_code UK
-        int host_id FK
-        string status
-        datetime meeting_start_time
-        int meeting_duration
-        int remaining_time
-        datetime created_at
-    }
-
-    meeting_participants {
-        int id PK
-        int meeting_id FK
-        int user_id FK
-        boolean is_ready
-        datetime joined_at
-    }
-
-    user_presence {
-        int id PK
-        int meeting_id FK
-        int user_id FK
-        boolean connected
-        datetime last_seen
-        datetime joined_at
-        datetime left_at
-    }
-```
-
-Solo focus tables (`focus_sessions`, `tasks`, `streaks`, `achievements`, etc.) are unchanged. See `backend/app/models/` for full definitions.
+Models live in `backend/app/models/`.
 
 ---
 
@@ -479,54 +384,19 @@ Solo focus tables (`focus_sessions`, `tasks`, `streaks`, `achievements`, etc.) a
 
 ```
 focus-sessions/
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── auth.py
-│   │   │   ├── tasks.py
-│   │   │   ├── sessions.py          # Solo focus
-│   │   │   ├── meetings.py          # Group rooms (REST)
-│   │   │   ├── sockets.py           # Group rooms (Socket.IO)
-│   │   │   ├── analytics.py
-│   │   │   ├── achievements.py
-│   │   │   └── settings.py
-│   │   ├── models/
-│   │   │   ├── meeting.py           # Meeting, MeetingParticipant
-│   │   │   ├── presence.py          # UserPresence
-│   │   │   └── ...
-│   │   ├── services/
-│   │   │   ├── meeting_sync.py      # Sync payload builder
-│   │   │   ├── timer_service.py     # Server-side group timer
-│   │   │   └── ...
-│   │   ├── core/
-│   │   │   ├── migrate.py           # Auto SQLite migrations
-│   │   │   └── ...
-│   │   └── main.py                  # FastAPI + Socket.IO ASGI
-│   └── requirements.txt
-│
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── CreateMeeting.jsx
-│   │   │   ├── JoinMeeting.jsx
-│   │   │   ├── MeetingRoom.jsx
-│   │   │   ├── MeetingDashboard.jsx
-│   │   │   └── ...                  # Solo + core pages
-│   │   ├── components/meeting/
-│   │   │   └── MeetingPhaseBar.tsx
-│   │   ├── hooks/
-│   │   │   ├── useMeetingSocket.ts
-│   │   │   ├── useMeetingState.ts
-│   │   │   ├── useMeetingTimer.ts
-│   │   │   └── useParticipantPresence.ts
-│   │   ├── services/
-│   │   │   ├── api.ts               # meetingsApi included
-│   │   │   └── meetingService.ts
-│   │   └── utils/meetingUtils.ts
-│   └── vite.config.ts               # Proxies /api + /socket.io
-│
-├── setup.cmd
-├── start.cmd
+├── backend/app/
+│   ├── api/          auth, tasks, sessions, meetings, sockets, analytics, achievements, settings
+│   ├── models/       user, task, session, meeting, presence, streak, achievement, settings
+│   ├── services/     timer_service, meeting_sync, productivity, coach, achievements
+│   ├── core/         config, database, security, migrate
+│   └── main.py       FastAPI + Socket.IO ASGI
+├── frontend/src/
+│   ├── pages/        Dashboard, solo focus, CreateMeeting, JoinMeeting, MeetingRoom, …
+│   ├── components/   layout, focus, meeting/
+│   ├── hooks/        useTimer, useMeetingSocket, useMeetingState, …
+│   ├── services/     api.ts, meetingService.ts
+│   └── utils/        meetingUtils.ts, helpers.ts
+├── setup.cmd · start.cmd
 └── README.md
 ```
 
@@ -536,12 +406,10 @@ focus-sessions/
 
 | Command | Description |
 |---------|-------------|
-| `setup.cmd` | Venv, deps, DB migrate, seed |
-| `start.cmd` | Backend + frontend + open browser |
-| `test-all.cmd` | Run tests and build |
-| `build.cmd` | Production build |
-| `npm run dev` | Frontend dev server |
-| `uvicorn app.main:app --reload` | Backend with hot reload |
+| `setup.cmd` | Setup + seed |
+| `start.cmd` | Run app |
+| `npm run dev` | Frontend |
+| `uvicorn app.main:app --reload` | Backend |
 
 ---
 
@@ -554,26 +422,13 @@ focus-sessions/
 
 ---
 
-## 🎨 Design System
+## 🎨 Design principles
 
-- **Themes:** Dark (default), Light (+ settings-driven variants)
-- **Typography:** DM Sans
-- **Components:** `btn-primary`, `btn-secondary`, `card`, `card-elevated`, `input-field`
-- **Group UX:** Phase bar, ready states, minimal mode, reconnect banner — kept calm and low-noise for ADHD users
-
----
-
-## 🧪 Testing group focus locally
-
-1. Start backend + frontend.
-2. Browser A: register/login → **Host Room** → create → enter room.
-3. Browser B (incognito): register/login → **Join Latest** or paste invite link.
-4. B: tap **I'm ready**. A: see ready count → **Start session**.
-5. Confirm timer counts down on both browsers.
-6. Optional: toggle **minimal mode** (eye icon) on either client.
+- ADHD-friendly: small starts, optional video, muted defaults, minimal mode, calm copy
+- **Jitsi (optional):** `VITE_JITSI_DOMAIN=meet.yourdomain.com` in `frontend/.env`
 
 ---
 
 <p align="center">
-  Built with 💜 for the ADHD community — solo focus and quiet accountability together.
+  Built with 💜 for the ADHD community
 </p>
