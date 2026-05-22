@@ -28,6 +28,7 @@ import { useParticipantPresence } from '../hooks/useParticipantPresence';
 import { useMeetingState } from '../hooks/useMeetingState';
 import { useMeetingTimer } from '../hooks/useMeetingTimer';
 import MeetingPhaseBar from '../components/meeting/MeetingPhaseBar';
+import MeetingVideoCall from '../components/meeting/MeetingVideoCall';
 import { buildJoinMessage, formatTimer, getMeetingPhase } from '../utils/meetingUtils';
 
 const DURATIONS = [15, 25, 45, 50, 60];
@@ -323,6 +324,14 @@ export default function MeetingRoom() {
                 </button>
               )}
             </div>
+          )}
+
+          {!minimalMode && (
+            <MeetingVideoCall
+              roomCode={code}
+              meetingId={meeting.id}
+              displayName={user?.name}
+            />
           )}
 
           {!isHost && isWaiting && (

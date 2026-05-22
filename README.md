@@ -256,6 +256,7 @@ flowchart TD
 | **Invite link** | Shareable URL with room code pre-filled |
 | **Reconnect** | Auto-rejoin + timer resync from server state |
 | **Live indicator** | Green “Live” when Socket.IO connected |
+| **Optional video** | Jitsi embed — camera/mic **off by default**; open only if wanted |
 | **Join latest** | `POST /api/meetings/join-latest` picks newest active room |
 | **Server timer** | Authoritative countdown; clients display ticks |
 
@@ -279,6 +280,23 @@ flowchart TD
 | `services/meetingService.ts` | REST helpers |
 | `components/meeting/MeetingPhaseBar.tsx` | Phase stepper UI |
 | `utils/meetingUtils.ts` | Invite URLs, timer format, phases |
+| `components/meeting/MeetingVideoCall.tsx` | Optional Jitsi video (off by default) |
+
+#### Optional video calls
+
+Group rooms can open an **optional video panel** powered by [Jitsi](https://jitsi.org/) (`meet.jit.si` by default). Video is **not required** for focus — the shared timer still runs over Socket.IO.
+
+- **Open video** in the meeting room → same Jitsi room name per focus room code
+- **Mic and camera start muted** (less pressure for ADHD users)
+- **Open in new tab** fallback if the embed fails
+
+To use your own Jitsi server, set in `frontend/.env`:
+
+```env
+VITE_JITSI_DOMAIN=meet.yourdomain.com
+```
+
+For production at scale, consider [LiveKit](https://livekit.io/) or [Daily.co](https://www.daily.co/) (API keys, TURN servers, recording).
 
 ---
 
