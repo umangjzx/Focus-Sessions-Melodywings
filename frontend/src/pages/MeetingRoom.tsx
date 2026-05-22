@@ -6,6 +6,7 @@ import {
   Copy,
   Pause,
   Play,
+  Square,
   Users,
   ArrowLeft,
   Wifi,
@@ -20,6 +21,7 @@ import { useAuthStore } from '../store/authStore';
 import {
   joinMeeting,
   getMeetingState,
+  endMeeting,
   normalizeMeetingStatus,
   type MeetingSync,
 } from '../services/meetingService';
@@ -51,6 +53,7 @@ export default function MeetingRoom() {
   const [minimalMode, setMinimalMode] = useState(false);
   const [myReady, setMyReady] = useState(false);
   const [startError, setStartError] = useState('');
+  const [ending, setEnding] = useState(false);
 
   const code = (roomCode || '').toUpperCase();
   const onSyncRef = useRef<(sync: MeetingSync) => void>();
@@ -167,6 +170,50 @@ export default function MeetingRoom() {
     socket?.emit('resume_meeting', { room_code: code });
   }
 
+  function handleEndSession() {
+    if (!isHost || ending) return;
+
+    const inWaiting = isWaiting;
+    const msg = inWaiting
+      ? 'End this room for everyone? No focus timer will run.'
+      : 'End the focus session for everyone now?';
+
+    if (!window.confirm(msg)) return;
+
+    setEnding(true);
+    setStartError('');
+
+    const finish = () => {
+      setStatus('COMPLETED');
+      setEnding(false);
+    };
+
+    if (socket && connected) {
+      socket.emit(
+        'end_meeting',
+        { room_code: code },
+        (response: { error?: string; status?: string }) => {
+          if (response?.error) {
+            setStartError(response.error);
+            setEnding(false);
+            return;
+          }
+          if (response?.status === 'completed') {
+            finish();
+          }
+        }
+      );
+      return;
+    }
+
+    endMeeting(code)
+      .then(() => finish())
+      .catch((err: Error) => {
+        setStartError(err.message);
+        setEnding(false);
+      });
+  }
+
   function handleResync() {
     if (!socket) return;
     socket.emit('request_sync', { room_code: code });
@@ -267,6 +314,17 @@ export default function MeetingRoom() {
             {!isWaiting && phase === 'focus' && (
               <p className="mt-2 text-xs text-slate-500">Stay present — you&apos;ve got this</p>
             )}
+            {isHost && minimalMode && displayStatus !== 'COMPLETED' && (
+              <button
+                type="button"
+                onClick={handleEndSession}
+                disabled={ending || !connected}
+                className="btn-danger mx-auto mt-4"
+              >
+                <Square className="h-4 w-4" />
+                {ending ? 'Ending…' : 'End for everyone'}
+              </button>
+            )}
           </div>
 
           {isHost && !minimalMode && (
@@ -323,6 +381,25 @@ export default function MeetingRoom() {
                   Resume session
                 </button>
               )}
+
+              <div className="mt-4 border-t border-slate-700/80 pt-4">
+                <button
+                  type="button"
+                  onClick={handleEndSession}
+                  disabled={ending || !connected}
+                  className="btn-danger w-full sm:w-auto"
+                >
+                  <Square className="h-5 w-5" />
+                  {ending
+                    ? 'Ending…'
+                    : isWaiting
+                      ? 'End room for everyone'
+                      : 'End session for everyone'}
+                </button>
+                <p className="mt-2 text-xs text-slate-500">
+                  Only you as host can end the room. Everyone goes to the session summary.
+                </p>
+              </div>
             </div>
           )}
 

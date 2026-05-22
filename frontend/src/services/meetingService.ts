@@ -71,6 +71,15 @@ export async function getParticipants(roomCode: string): Promise<MeetingParticip
   return data;
 }
 
+export async function endMeeting(roomCode: string) {
+  try {
+    const { data } = await meetingsApi.end(roomCode);
+    return data;
+  } catch (err) {
+    throw new Error(getErrorMessage(err, 'Could not end the session.'));
+  }
+}
+
 export function normalizeMeetingStatus(status: string): string {
   return (status || 'WAITING').toUpperCase();
 }

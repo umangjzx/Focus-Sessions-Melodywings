@@ -312,3 +312,30 @@ async def handle_resume_meeting(sid, data):
         await start_timer_task(sio, meeting.id)
 
     return {'status': 'resumed'}
+
+
+@sio.on('end_meeting')
+async def handle_end_meeting(sid, data):
+    """Host ends the room for everyone (waiting, running, or paused)."""
+    room_code = _normalize_room_code(data.get('room_code', ''))
+    async with sio.session(sid) as session:
+        user_id = session.get('user_id')
+
+    with SessionLocal() as db:
+        meeting = _find_meeting(db, room_code)
+        if not meeting:
+            return {'error': 'Meeting not found'}
+        if meeting.host_id != user_id:
+            return {'error': 'Only the host can end this session'}
+
+        status_upper = (meeting.status or "").upper()
+        if status_upper == "COMPLETED":
+            return {'error': 'Session already ended'}
+
+        from app.services.timer_service import complete_meeting
+
+        ok = await complete_meeting(sio, meeting.id, db=db, meeting=meeting)
+        if not ok:
+            return {'error': 'Could not end session'}
+
+    return {'status': 'completed', 'meeting_id': meeting.id}

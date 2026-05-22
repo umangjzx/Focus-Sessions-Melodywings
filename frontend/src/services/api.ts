@@ -267,6 +267,10 @@ export const meetingsApi = {
       null,
       { params: { duration_minutes: durationMinutes } }
     ),
+  end: (roomCode: string) =>
+    api.post<{ status: string; room_code: string; message: string }>(
+      `/meetings/${roomCode.toUpperCase()}/end`
+    ),
 };
 
 export default api;

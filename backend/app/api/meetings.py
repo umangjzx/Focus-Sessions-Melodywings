@@ -267,6 +267,34 @@ def start_meeting(
     }
 
 
+@router.post("/{room_code}/end")
+async def end_meeting(
+    room_code: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Host ends the focus room for all participants."""
+    from app.api.sockets import sio
+    from app.services.timer_service import complete_meeting
+
+    meeting = _find_meeting_by_code(db, room_code)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    if meeting.host_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the host can end this session")
+    if (meeting.status or "").upper() == "COMPLETED":
+        raise HTTPException(status_code=400, detail="Session already ended")
+
+    await complete_meeting(sio, meeting.id, db=db, meeting=meeting)
+    db.refresh(meeting)
+
+    return {
+        "status": meeting.status,
+        "room_code": meeting.room_code,
+        "message": "Session ended for everyone",
+    }
+
+
 @router.get("/{room_code}/participants")
 def get_participants(
     room_code: str,

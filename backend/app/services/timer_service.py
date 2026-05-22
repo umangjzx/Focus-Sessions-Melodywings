@@ -40,17 +40,7 @@ async def run_timer(meeting_id: int, sio):
                 )
 
             if meeting.remaining_time <= 0:
-                meeting.status = 'COMPLETED'
-                meeting.remaining_time = 0
-                db.commit()
-
-                await sio.emit(
-                    'meeting_completed',
-                    {'meeting_id': meeting_id},
-                    room=f'meeting_{meeting_id}',
-                )
-
-                generate_meeting_statistics(meeting_id)
+                await complete_meeting(sio, meeting_id, db=db, meeting=meeting)
                 break
 
     active_timers.pop(meeting_id, None)
@@ -71,3 +61,39 @@ async def stop_timer_task(meeting_id: int) -> None:
     task = active_timers.pop(meeting_id, None)
     if task is not None:
         task.cancel()
+
+
+async def complete_meeting(sio, meeting_id: int, db=None, meeting=None) -> bool:
+    """Mark meeting completed, stop timer, emit event, and record stats."""
+    from app.core.database import SessionLocal
+
+    close_db = False
+    if db is None:
+        db = SessionLocal()
+        close_db = True
+
+    try:
+        if meeting is None:
+            meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
+        if not meeting:
+            return False
+        if (meeting.status or "").upper() == "COMPLETED":
+            return False
+
+        await stop_timer_task(meeting_id)
+
+        meeting.status = "COMPLETED"
+        meeting.remaining_time = 0
+        db.commit()
+
+        generate_meeting_statistics(meeting_id)
+
+        await sio.emit(
+            "meeting_completed",
+            {"meeting_id": meeting_id},
+            room=f"meeting_{meeting_id}",
+        )
+        return True
+    finally:
+        if close_db:
+            db.close()
