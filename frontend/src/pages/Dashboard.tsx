@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { joinLatestMeeting } from '../services/meetingService';
 import { motion } from 'framer-motion';
-import { Play, Clock, CheckCircle2, Flame, Sparkles, TrendingUp } from 'lucide-react';
+import { Play, Clock, CheckCircle2, Flame, Sparkles, TrendingUp, Crown, Users } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid } from 'recharts';
 import { useAppStore } from '../store/useAppStore';
 import { analyticsApi, settingsApi } from '../services/api';
@@ -13,6 +14,22 @@ export default function Dashboard() {
   const [weekly, setWeekly] = useState<{ labels: string[]; minutes: number[] } | null>(null);
   const [coachMsg, setCoachMsg] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [joiningGroup, setJoiningGroup] = useState(false);
+  const [joinError, setJoinError] = useState('');
+
+  async function handleJoinLatest() {
+    setJoinError('');
+    setJoiningGroup(true);
+    try {
+      const data = await joinLatestMeeting();
+      navigate(`/meeting/${data.room_code}`);
+    } catch (err) {
+      setJoinError(err instanceof Error ? err.message : 'No active rooms to join.');
+      navigate('/join-meeting');
+    } finally {
+      setJoiningGroup(false);
+    }
+  }
 
   useEffect(() => {
     setIsLoading(true);
@@ -72,15 +89,53 @@ export default function Dashboard() {
             </p>
           )}
         </div>
-        <button 
-          type="button" 
-          className="btn-primary whitespace-nowrap" 
-          onClick={() => navigate('/setup')}
-        >
-          <Play className="h-5 w-5" />
-          Start Focus Session
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="btn-primary whitespace-nowrap"
+            onClick={() => navigate('/setup')}
+          >
+            <Play className="h-5 w-5" />
+            Solo Focus
+          </button>
+        </div>
       </motion.header>
+
+      {/* Group focus */}
+      <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => navigate('/create-meeting')}
+          className="card-interactive group text-left"
+        >
+          <div className="inline-flex rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 p-3 mb-3 text-white group-hover:scale-110 transition-transform">
+            <Crown className="h-6 w-6" />
+          </div>
+          <h3 className="text-lg font-semibold text-text">Host a Focus Room</h3>
+          <p className="mt-1 text-sm text-text-muted">
+            Create a room, share your code, and control the group timer as host.
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={handleJoinLatest}
+          disabled={joiningGroup}
+          className="card-interactive group text-left disabled:opacity-60"
+        >
+          <div className="inline-flex rounded-lg bg-gradient-to-br from-violet-500 to-primary p-3 mb-3 text-white group-hover:scale-110 transition-transform">
+            <Users className="h-6 w-6" />
+          </div>
+          <h3 className="text-lg font-semibold text-text">
+            {joiningGroup ? 'Joining latest room…' : 'Join Latest Focus Room'}
+          </h3>
+          <p className="mt-1 text-sm text-text-muted">
+            Automatically join the most recent active session hosted by someone else.
+          </p>
+        </button>
+      </motion.div>
+      {joinError && (
+        <p className="text-sm text-amber-400">{joinError}</p>
+      )}
 
       {/* Stats Grid */}
       <motion.div 

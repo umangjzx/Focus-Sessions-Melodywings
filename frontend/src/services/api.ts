@@ -153,4 +153,87 @@ export const settingsApi = {
   coach: (phase: string) => api.get<{ message: string }>(`/settings/coach/${phase}`),
 };
 
+export interface Meeting {
+  id: number;
+  title: string;
+  room_code: string;
+  host_id: number;
+  host_name?: string | null;
+  status: string;
+  participant_count?: number;
+  ready_count?: number;
+  online_count?: number;
+  remaining_seconds?: number | null;
+  duration_minutes?: number | null;
+  created_at?: string | null;
+}
+
+export interface MeetingParticipant {
+  id: number;
+  name: string;
+  email: string;
+  is_host?: boolean;
+  is_ready?: boolean;
+  online?: boolean;
+}
+
+export interface MeetingSync {
+  id: number;
+  title: string;
+  room_code: string;
+  host_id: number;
+  host_name?: string | null;
+  status: string;
+  remaining_seconds: number | null;
+  duration_minutes: number | null;
+  participant_count: number;
+  ready_count: number;
+  online_count: number;
+  participants: MeetingParticipant[];
+}
+
+export interface MeetingSummary {
+  title: string;
+  room_code: string;
+  status: string;
+  participant_count: number;
+  duration_minutes: number;
+  focused_minutes: number | null;
+  host_name?: string | null;
+}
+
+export interface JoinMeetingResult {
+  message: string;
+  room_code: string;
+  meeting: Meeting;
+}
+
+export const meetingsApi = {
+  create: (title: string) =>
+    api.post<{
+      meeting_id: number;
+      room_code: string;
+      host_id: number;
+      status: string;
+      meeting: Meeting;
+    }>('/meetings/create', null, { params: { title } }),
+  getLatestAvailable: () => api.get<Meeting>('/meetings/latest/available'),
+  joinLatest: () => api.post<JoinMeetingResult>('/meetings/join-latest'),
+  join: (roomCode: string) =>
+    api.post<JoinMeetingResult>(`/meetings/join/${roomCode.toUpperCase()}`),
+  get: (roomCode: string) => api.get<Meeting>(`/meetings/${roomCode.toUpperCase()}`),
+  getState: (roomCode: string) =>
+    api.get<MeetingSync>(`/meetings/${roomCode.toUpperCase()}/state`),
+  getSummary: (roomCode: string) =>
+    api.get<MeetingSummary>(`/meetings/${roomCode.toUpperCase()}/summary`),
+  getParticipants: (roomCode: string) =>
+    api.get<MeetingParticipant[]>(`/meetings/${roomCode.toUpperCase()}/participants`),
+  start: (roomCode: string, durationMinutes = 25) =>
+    api.post<{ status: string; started_at: string; duration_minutes: number }>(
+      `/meetings/${roomCode.toUpperCase()}/start`,
+      null,
+      { params: { duration_minutes: durationMinutes } }
+    ),
+};
+
 export default api;

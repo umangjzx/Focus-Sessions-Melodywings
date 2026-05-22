@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { joinLatestMeeting } from '../../services/meetingService';
 import {
   LayoutDashboard,
   Play,
@@ -9,13 +11,22 @@ import {
   Settings,
   LogOut,
   Focus,
+  Crown,
+  Users,
 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/authStore';
 
-const navItems = [
+const navItems: {
+  path: string;
+  icon: typeof LayoutDashboard;
+  label: string;
+  action?: 'join-latest';
+}[] = [
   { path: '/', icon: LayoutDashboard, label: 'Home' },
   { path: '/setup', icon: Play, label: 'Focus' },
+  { path: '/create-meeting', icon: Crown, label: 'Host Room' },
+  { path: '/join-meeting', icon: Users, label: 'Join Latest', action: 'join-latest' },
   { path: '/tasks', icon: ListTodo, label: 'Tasks' },
   { path: '/analytics', icon: BarChart3, label: 'Stats' },
   { path: '/achievements', icon: Trophy, label: 'Rewards' },
@@ -27,6 +38,23 @@ export default function Layout() {
   const navigate = useNavigate();
   const { dashboard } = useAppStore();
   const { user, logout } = useAuthStore();
+  const [joining, setJoining] = useState(false);
+
+  async function handleNavClick(path: string, action?: 'join-latest') {
+    if (action === 'join-latest') {
+      setJoining(true);
+      try {
+        const data = await joinLatestMeeting();
+        navigate(`/meeting/${data.room_code}`);
+      } catch {
+        navigate('/join-meeting');
+      } finally {
+        setJoining(false);
+      }
+      return;
+    }
+    navigate(path);
+  }
 
   return (
     <motion.div className="flex min-h-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -42,19 +70,27 @@ export default function Layout() {
         </motion.div>
 
         <nav className="flex flex-1 flex-col gap-1">
-          {navItems.map(({ path, icon: Icon, label }) => {
-            const active = location.pathname === path;
+          {navItems.map(({ path, icon: Icon, label, action }) => {
+            const active =
+              location.pathname === path ||
+              (path === '/join-meeting' && location.pathname.startsWith('/meeting/'));
+            const isJoin = action === 'join-latest';
             return (
               <button
                 key={path}
                 type="button"
-                onClick={() => navigate(path)}
+                disabled={isJoin && joining}
+                onClick={() => handleNavClick(path, action)}
                 className={`flex items-center gap-3 rounded-2xl p-3 transition ${
-                  active ? 'bg-primary/20 text-primary' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`}
+                  active && (path !== '/join-meeting' || location.pathname.startsWith('/meeting/'))
+                    ? 'bg-primary/20 text-primary'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                } disabled:opacity-50`}
               >
                 <Icon className="h-6 w-6 shrink-0" />
-                <span className="hidden text-sm font-medium lg:inline">{label}</span>
+                <span className="hidden text-sm font-medium lg:inline">
+                  {isJoin && joining ? 'Joining…' : label}
+                </span>
               </button>
             );
           })}

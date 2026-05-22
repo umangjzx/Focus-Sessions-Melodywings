@@ -1,6 +1,6 @@
 # 🧠 Focus Sessions
 
-> An ADHD-friendly productivity web application with Pomodoro timers, ambient soundscapes, intelligent task management, session analytics, and gamified rewards — built to help neurodivergent users stay focused and accomplish more.
+> An ADHD-friendly productivity web application with Pomodoro timers, ambient soundscapes, intelligent task management, session analytics, gamified rewards, and **group focus rooms** — built to help neurodivergent users stay focused alone or together.
 
 ---
 
@@ -11,16 +11,18 @@
 - [Architecture Overview](#-architecture-overview)
 - [Application Flow](#-application-flow)
 - [Module-Wise Features](#-module-wise-features)
-  - [Authentication Module](#1--authentication-module)
-  - [Dashboard Module](#2--dashboard-module)
-  - [Session Module](#3--session-module)
-  - [Task Manager Module](#4--task-manager-module)
-  - [Analytics Module](#5--analytics-module)
-  - [Gamification Module](#6--gamification-module)
-  - [Settings Module](#7--settings-module)
-  - [Audio Module](#8--audio-module)
+  - [Authentication](#1--authentication-module)
+  - [Dashboard](#2--dashboard-module)
+  - [Solo Focus Sessions](#3--solo-focus-session-module)
+  - [Group Focus Rooms](#4--group-focus-rooms-module)
+  - [Task Manager](#5--task-manager-module)
+  - [Analytics](#6--analytics-module)
+  - [Gamification](#7--gamification-module)
+  - [Settings](#8--settings-module)
+  - [Audio](#9--audio-module)
 - [Component Map](#-component-map)
 - [Backend API Reference](#-backend-api-reference)
+- [Socket.IO Events](#-socketio-events-real-time)
 - [Database Schema](#-database-schema)
 - [Project Structure](#-project-structure)
 - [Scripts](#-scripts)
@@ -37,7 +39,9 @@
 | **State** | Zustand | Lightweight global state management |
 | **Forms** | React Hook Form · Zod | Form handling & schema validation |
 | **Charts** | Recharts | Analytics visualizations |
-| **Backend** | FastAPI · Python 3.11+ | REST API server |
+| **Real-time** | Socket.IO Client | Live group timers, presence, ready signals |
+| **Backend** | FastAPI · Python 3.11+ | REST API + WebSocket server |
+| **Real-time** | python-socketio | Group meeting sync & host controls |
 | **ORM** | SQLAlchemy 2.0 | Database abstraction |
 | **Auth** | JWT (python-jose) · bcrypt | Token-based authentication |
 | **Database** | SQLite (dev) / PostgreSQL (prod) | Data persistence |
@@ -60,28 +64,31 @@ start.cmd          # Starts backend + frontend, opens browser
 ### Manual Setup
 
 ```bash
-# Backend
+# Backend (REST + Socket.IO on :8000)
 cd backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
-# Frontend (separate terminal)
+# Frontend (separate terminal — proxies /api and /socket.io)
 cd frontend
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173 — register an account and start a focus session.
+Open http://localhost:5173 — register, start a solo session, or host a group room.
 
 ### PostgreSQL (optional)
 
 Set in `backend/.env`:
-```
+
+```env
 DATABASE_URL=postgresql://user:pass@localhost:5432/focus_sessions
 SECRET_KEY=your-secret-key
 ```
+
+On startup, `app/core/migrate.py` creates missing tables and adds new SQLite columns automatically.
 
 ---
 
@@ -91,84 +98,75 @@ SECRET_KEY=your-secret-key
 graph TB
     subgraph Frontend ["Frontend (React + Vite — :5173)"]
         Pages["Pages Layer"]
-        Components["Components Layer"]
+        Hooks["Meeting Hooks (Socket.IO)"]
         Store["Zustand Store"]
         API["API Service (Axios)"]
     end
 
-    subgraph Backend ["Backend (FastAPI — :8000)"]
-        Routes["API Router"]
-        Services["Business Logic"]
+    subgraph Backend ["Backend (FastAPI + Socket.IO — :8000)"]
+        Routes["REST Routers"]
+        Sockets["Socket.IO Handlers"]
+        Services["Business Logic + Timer"]
         Models["SQLAlchemy Models"]
     end
 
     subgraph Database ["Database"]
-        SQLite["SQLite / PostgreSQL"]
+        DB["SQLite / PostgreSQL"]
     end
 
-    Pages --> Components
+    Pages --> Hooks
     Pages --> Store
     Pages --> API
-    Store --> API
+    Hooks -->|WebSocket| Sockets
     API -->|"/api/*"| Routes
     Routes --> Services
+    Sockets --> Services
     Services --> Models
-    Models --> SQLite
+    Models --> DB
 ```
 
 ---
 
 ## 🔄 Application Flow
 
-### User Journey Flow
+### Solo focus journey
 
 ```mermaid
 flowchart TD
-    A["🌐 Landing Page"] -->|Register/Login| B["🔐 Authentication"]
-    B -->|JWT Token| C["📊 Dashboard"]
-    
-    C -->|Start Session| D["⚙️ Session Setup"]
-    C -->|Manage Tasks| H["📋 Task Manager"]
-    C -->|View Stats| I["📈 Analytics"]
-    C -->|View Rewards| J["🏆 Achievements"]
-    C -->|Configure| K["⚙️ Settings"]
-    
-    D -->|3-2-1 Countdown| E["🎯 Focus Mode"]
-    E -->|Timer Complete| F["☕ Break Mode"]
-    E -->|Quit/Complete| G["✅ Session Complete"]
-    F -->|Break Over| E
-    F -->|End Session| G
-    
-    G -->|Rate & Review| C
-    
-    H -->|Link Task to Session| D
+    A["Landing"] --> B["Login / Register"]
+    B --> C["Dashboard"]
+    C --> D["Session Setup"]
+    D --> E["Focus Mode"]
+    E --> F["Break Mode"]
+    E --> G["Session Complete"]
+    F --> E
+    G --> C
 ```
 
-### Focus Session Lifecycle
+### Group focus journey
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Setup : User configures session
-    Setup --> Countdown : Click "Begin Focus"
-    Countdown --> Focusing : 3-2-1 countdown ends
-    Focusing --> Paused : Pause button
-    Paused --> Focusing : Resume button
-    Focusing --> Break : Pomodoro interval ends
-    Break --> Focusing : Break timer ends
-    Focusing --> Complete : Timer reaches zero
-    Focusing --> Complete : User ends early
-    Complete --> [*] : Rate mood & save
+flowchart TD
+    H["Dashboard"] --> I["Host Room OR Join Latest"]
+    I --> J["Create Meeting / Join Meeting"]
+    J --> K["Meeting Room"]
+    K --> L["Participants mark I'm ready"]
+    L --> M["Host starts shared timer"]
+    M --> N["Server timer ticks via Socket.IO"]
+    N --> O["Meeting Complete Summary"]
+    O --> H
+
+    I2["Invite link with ?code=ABC123"] --> J
 ```
 
-### Task Status Workflow
+### Group room phases
 
-```mermaid
-stateDiagram-v2
-    [*] --> Todo : Task created
-    Todo --> InProgress : Click status icon
-    InProgress --> Completed : Click status icon
-    Completed --> Todo : Click status icon (cycle)
-```
+| Phase | Status | What users see |
+|-------|--------|----------------|
+| **Waiting** | `WAITING` | Ready buttons, host picks duration |
+| **Focus** | `RUNNING` | Shared countdown timer |
+| **Paused** | `PAUSED` | Host paused for everyone |
+| **Done** | `COMPLETED` | Summary screen |
 
 ---
 
@@ -176,220 +174,136 @@ stateDiagram-v2
 
 ### 1. 🔐 Authentication Module
 
-**Purpose:** Secure user registration, login, and session management.
-
 | Feature | Description |
 |---------|-------------|
 | Registration | Name, email, password with Zod validation |
-| Login | Email + password, returns JWT token |
-| Auto-login | Persisted JWT token in localStorage |
-| Protected Routes | Redirect unauthenticated users to login |
-| Forgot Password | Email-based password reset flow |
+| Login | Email + password → JWT stored in `localStorage` |
+| Protected routes | Unauthenticated users redirected to login |
+| Forgot password | Reset token flow |
 
-**Components:**
-
-| Component | File | Role |
-|-----------|------|------|
-| `Login` | `pages/Login.tsx` | Login form with validation |
-| `Register` | `pages/Register.tsx` | Registration form with confirm password |
-| `Landing` | `pages/Landing.tsx` | Welcome/onboarding page |
-| `ProtectedRoute` | `components/ProtectedRoute.tsx` | Auth guard wrapper |
-| `authStore` | `store/authStore.ts` | Auth state (user, login, logout, loadUser) |
-
-**Backend Endpoints:**
-- `POST /api/auth/register` — Create account, return JWT
-- `POST /api/auth/login` — Authenticate, return JWT
-- `GET /api/auth/me` — Get current user profile
-- `POST /api/auth/logout` — Invalidate token
-- `POST /api/auth/forgot-password` — Send reset email
+**Endpoints:** `POST /api/auth/register`, `login`, `GET /api/auth/me`, `POST /api/auth/logout`
 
 ---
 
 ### 2. 📊 Dashboard Module
 
-**Purpose:** Central hub showing daily progress, weekly trends, smart recommendations, and quick actions.
-
 | Feature | Description |
 |---------|-------------|
-| Stats Cards | Today's focus time, tasks completed, streak days, total sessions |
-| Weekly Chart | Line chart showing daily focus minutes (7 days) |
-| Daily Distribution | Bar chart with per-day breakdown |
-| Smart Recommendation | AI-suggested session duration based on user patterns |
-| Coach Message | Motivational/contextual message from AI coach |
-| Quick Start | One-click navigation to session setup |
-
-**Components:**
-
-| Component | File | Role |
-|-----------|------|------|
-| `Dashboard` | `pages/Dashboard.tsx` | Main dashboard page with charts & stats |
-| `useAppStore` | `store/useAppStore.ts` | Dashboard data, settings, active session state |
+| Stats cards | Today's focus, tasks done, streak, total sessions |
+| Charts | Weekly line chart + daily bar distribution |
+| Smart recommendation | Suggested session duration |
+| AI coach message | Contextual pre-session tip |
+| **Host a Focus Room** | Create group session as host |
+| **Join Latest Focus Room** | One-click join most recent active room |
 
 ---
 
-### 3. 🎯 Session Module
-
-**Purpose:** End-to-end focus session lifecycle — setup, focus timer, breaks, and completion review.
+### 3. 🎯 Solo Focus Session Module
 
 | Feature | Description |
 |---------|-------------|
-| Session Setup | Title, duration picker, task linking, Pomodoro presets, ambient sound, strict mode |
-| Duration Presets | 5, 15, 25, 45, 60, 90, 120 minute quick-select buttons |
-| Pomodoro Presets | 25/5, 50/10, or custom work/break intervals |
-| 3-2-1 Countdown | Animated countdown overlay before session starts |
-| Focus Timer | Full-screen circular progress ring with remaining time |
-| Pause/Resume | Pause tracking with pause counter |
-| Strict Mode | Requires typing a phrase to quit early (impulse control) |
-| Auto-Start Breaks | Automatic break period after work intervals |
-| Break Mode | Guided break with timer, stretching/hydration reminders |
-| Session Complete | Mood rating, notes, XP earned, badges unlocked |
+| Session setup | Title, duration, task link, Pomodoro, ambient sound, strict mode |
+| 3-2-1 countdown | Gentle start before timer runs |
+| Focus timer | Full-screen progress ring |
+| Pause / resume | Synced to backend session record |
+| Break mode | Optional Pomodoro breaks |
+| Session complete | Mood, notes, XP, streak, badges |
 
-**Components:**
-
-| Component | File | Role |
-|-----------|------|------|
-| `SessionSetup` | `pages/SessionSetup.tsx` | Session configuration form |
-| `FocusMode` | `pages/FocusMode.tsx` | Active focus timer with progress ring |
-| `BreakMode` | `pages/BreakMode.tsx` | Break timer between Pomodoro intervals |
-| `SessionComplete` | `pages/SessionComplete.tsx` | Post-session review & mood rating |
-| `CountdownOverlay` | `components/focus/CountdownOverlay.tsx` | 3-2-1 animated countdown |
-| `ProgressRing` | `components/focus/ProgressRing.tsx` | SVG circular progress indicator |
-| `useTimer` | `hooks/useTimer.ts` | Timer logic (start, pause, resume, tick) |
+**Endpoints:** `POST /api/sessions/start`, `pause`, `resume`, `complete`, `GET /api/sessions/history`
 
 ---
 
-### 4. 📋 Task Manager Module
+### 4. 👥 Group Focus Rooms Module
 
-**Purpose:** Full-featured task management with search, filters, due dates, inline editing, bulk operations, and subtask tracking.
+**Purpose:** Body-doubling style group sessions with a **host-controlled shared timer** and gentle UX for ADHD users.
+
+#### Host flow
+
+1. **Host Room** (`/create-meeting`) — name the room, get a room code
+2. **Copy invite** — message includes code + link (`/join-meeting?code=XXXXXX`)
+3. Enter **Meeting Room** — see who is online and who is ready
+4. Choose duration (15–60 min) → **Start session** for everyone
+5. **Pause / Resume** — affects all participants
+6. On complete → **Meeting Dashboard** summary
+
+#### Participant flow
+
+1. **Join Latest** (dashboard or sidebar) or open invite link
+2. **Join preview** — see room title, host, online/ready counts before entering
+3. Tap **I'm ready** when set to focus
+4. Wait for host to start — shared timer syncs via server
+5. **Minimal mode** (eye icon) — hide sidebar, timer-only view
+
+#### Gentle UX features
 
 | Feature | Description |
 |---------|-------------|
-| Task CRUD | Create, read, update, delete tasks |
-| Stats Header | Total tasks, completed (%), in-progress, estimated time |
-| Search | Real-time search by task title |
-| Filter by Status | All / To Do / In Progress / Completed |
-| Filter by Priority | All / High / Medium / Low |
-| Sort | Newest, Oldest, Priority, Due Date |
-| Due Dates | Optional due date with color-coded urgency (overdue=red, today=amber, upcoming=blue) |
-| Priority Levels | High (red), Medium (amber), Low (blue) with color-coded badges |
-| Status Workflow | Click status icon to cycle: Todo → In Progress → Completed → Todo |
-| Inline Editing | Click task title to rename in-place |
-| Expandable Details | Chevron to reveal description, notes, tags, timestamps |
-| Subtasks | Create tasks as children of parent tasks |
-| Subtask Progress | Animated progress bar showing subtask completion |
-| Bulk Actions | Checkbox selection + batch complete/delete |
-| Empty State | Illustrated placeholder when no tasks match |
-| Estimated Time | Set and display estimated minutes per task |
+| **I'm ready** | Participants signal readiness; host sees `X/Y ready` |
+| **Phase bar** | Waiting → Focus → Paused → Done |
+| **Invite link** | Shareable URL with room code pre-filled |
+| **Reconnect** | Auto-rejoin + timer resync from server state |
+| **Live indicator** | Green “Live” when Socket.IO connected |
+| **Join latest** | `POST /api/meetings/join-latest` picks newest active room |
+| **Server timer** | Authoritative countdown; clients display ticks |
 
-**Components:**
+**Key pages**
 
-| Component | File | Role |
-|-----------|------|------|
-| `TaskManager` | `pages/TaskManager.tsx` | Full task management page |
+| Page | Route | Role |
+|------|-------|------|
+| `CreateMeeting` | `/create-meeting` | Host creates room |
+| `JoinMeeting` | `/join-meeting` | Preview + join latest or by code |
+| `MeetingRoom` | `/meeting/:roomCode` | Live room + timer |
+| `MeetingDashboard` | `/meeting/:roomCode/dashboard` | Post-session summary |
 
-**Backend Endpoints:**
-- `GET /api/tasks?status=&priority=&search=` — List tasks with optional filters
-- `POST /api/tasks` — Create task or subtask
-- `PUT /api/tasks/{id}` — Update task fields
-- `DELETE /api/tasks/{id}` — Delete task (cascades subtasks)
-- `POST /api/tasks/bulk` — Bulk complete/delete operations
+**Hooks & services**
+
+| File | Role |
+|------|------|
+| `hooks/useMeetingSocket.ts` | Connect, join room, reconnect, sync |
+| `hooks/useMeetingState.ts` | Status from socket events |
+| `hooks/useMeetingTimer.ts` | `timer_tick` display |
+| `hooks/useParticipantPresence.ts` | Online + ready state |
+| `services/meetingService.ts` | REST helpers |
+| `components/meeting/MeetingPhaseBar.tsx` | Phase stepper UI |
+| `utils/meetingUtils.ts` | Invite URLs, timer format, phases |
 
 ---
 
-### 5. 📈 Analytics Module
+### 5. 📋 Task Manager Module
 
-**Purpose:** Visualize focus patterns, session history, and productivity trends.
+Full CRUD, filters, due dates, priorities, subtasks, bulk actions. Link tasks to solo focus sessions.
 
-| Feature | Description |
-|---------|-------------|
-| Weekly Focus | Minutes per day over the past 7 days |
-| Monthly Trends | Sessions and minutes per month |
-| Heatmap | Activity heatmap showing focus patterns |
-| Session History | Chronological list of all completed sessions |
-
-**Components:**
-
-| Component | File | Role |
-|-----------|------|------|
-| `Analytics` | `pages/Analytics.tsx` | Charts and session history |
-
-**Backend Endpoints:**
-- `GET /api/analytics/dashboard` — Aggregated stats (focus mins, streaks, XP, level)
-- `GET /api/analytics/weekly` — 7-day focus breakdown
-- `GET /api/analytics/monthly` — Monthly aggregates
-- `GET /api/analytics/heatmap` — Activity heatmap data
+**Endpoints:** `GET/POST/PUT/DELETE /api/tasks`, `POST /api/tasks/bulk`
 
 ---
 
-### 6. 🏆 Gamification Module
+### 6. 📈 Analytics Module
 
-**Purpose:** XP, leveling, streaks, and achievement badges to keep users motivated.
+Dashboard stats, weekly/monthly charts, heatmap, session history.
 
-| Feature | Description |
-|---------|-------------|
-| XP System | Earn XP for completing sessions (based on duration & mood) |
-| Leveling | Level up as XP accumulates |
-| Streaks | Track consecutive days with at least one session |
-| Achievements | Unlock badges for milestones (e.g., "First Session", "7-Day Streak") |
-| Badge Display | Visual badge gallery with earned dates |
-
-**Components:**
-
-| Component | File | Role |
-|-----------|------|------|
-| `Achievements` | `pages/Achievements.tsx` | Badge gallery |
-| Sidebar XP Card | `components/layout/Layout.tsx` | Level, XP, streak display in sidebar |
-
-**Backend Endpoints:**
-- `GET /api/achievements` — List earned badges
+**Endpoints:** `GET /api/analytics/dashboard`, `weekly`, `monthly`, `heatmap`
 
 ---
 
-### 7. ⚙️ Settings Module
+### 7. 🏆 Gamification Module
 
-**Purpose:** Personalize the app experience — themes, sounds, Pomodoro defaults, and AI coach.
+XP, levels, streaks, achievement badges on session complete.
 
-| Feature | Description |
-|---------|-------------|
-| Theme | Dark, Light, Calm Blue, Forest Green |
-| Default Duration | Default session length |
-| Pomodoro Defaults | Default work/break intervals |
-| Sound Preferences | Preferred ambient sound and volume |
-| Notifications | Enable/disable notifications |
-| Auto-Start Breaks | Default break behavior |
-| AI Coach | Enable/disable motivational coach messages |
-
-**Components:**
-
-| Component | File | Role |
-|-----------|------|------|
-| `Settings` | `pages/Settings.tsx` | Settings form |
-
-**Backend Endpoints:**
-- `GET /api/settings` — Get user settings
-- `PUT /api/settings` — Update settings
-- `GET /api/settings/coach/{phase}` — AI coach message for session phase
+**Endpoints:** `GET /api/achievements`
 
 ---
 
-### 8. 🎵 Audio Module
+### 8. ⚙️ Settings Module
 
-**Purpose:** Ambient soundscapes to enhance focus using Web Audio API.
+Themes, default duration, Pomodoro defaults, sounds, notifications, AI coach toggle.
 
-| Feature | Description |
-|---------|-------------|
-| Ambient Sounds | Rain, Brown Noise, White Noise, Ocean, Forest, Café |
-| Volume Control | Adjustable volume slider |
-| Music Player | Background music during focus sessions |
-| Sound Selection | Choose ambient sound during session setup |
+**Endpoints:** `GET/PUT /api/settings`, `GET /api/settings/coach/{phase}`
 
-**Components:**
+---
 
-| Component | File | Role |
-|-----------|------|------|
-| `AmbientSoundPlayer` | `components/AmbientSoundPlayer.tsx` | Web Audio API player with oscillator |
-| `MusicPlayer` | `components/MusicPlayer.tsx` | Background music controls |
-| Sounds Data | `data/ambientSounds.ts` | Sound definitions and metadata |
+### 9. 🎵 Audio Module
+
+Ambient sounds (rain, brown/white noise, ocean, forest, café) via Web Audio API during solo focus.
 
 ---
 
@@ -397,145 +311,136 @@ stateDiagram-v2
 
 ```mermaid
 graph TD
-    App["App.tsx (Router)"]
-    
-    App --> Landing["Landing"]
-    App --> Login["Login"]
-    App --> Register["Register"]
+    App["App.tsx"]
+    App --> Landing & Auth["Landing · Login · Register"]
     App --> Protected["ProtectedRoute"]
-    
-    Protected --> Layout["Layout (Sidebar + Outlet)"]
-    Protected --> FocusMode["FocusMode"]
-    Protected --> BreakMode["BreakMode"]
-    Protected --> SessionComplete["SessionComplete"]
-    
-    Layout --> Dashboard["Dashboard"]
-    Layout --> SessionSetup["SessionSetup"]
-    Layout --> TaskManager["TaskManager"]
-    Layout --> Analytics["Analytics"]
-    Layout --> Achievements["Achievements"]
-    Layout --> Settings["Settings"]
-    
-    FocusMode --> CountdownOverlay["CountdownOverlay"]
-    FocusMode --> ProgressRing["ProgressRing"]
-    FocusMode --> AmbientSoundPlayer["AmbientSoundPlayer"]
-    FocusMode --> MusicPlayer["MusicPlayer"]
-    FocusMode --> useTimer["useTimer Hook"]
+    Protected --> Layout["Layout (Sidebar)"]
+    Protected --> Solo["FocusMode · BreakMode · SessionComplete"]
+    Protected --> Group["MeetingRoom (fullscreen layout optional)"]
+
+    Layout --> Dashboard
+    Layout --> SessionSetup
+    Layout --> CreateMeeting
+    Layout --> JoinMeeting
+    Layout --> MeetingDashboard
+    Layout --> TaskManager
+    Layout --> Analytics
+    Layout --> Achievements
+    Layout --> Settings
 ```
+
+**Sidebar navigation:** Home · Focus · **Host Room** · **Join Latest** · Tasks · Stats · Rewards · Settings
+
+---
+
+## 🔌 Backend API Reference
+
+### Meetings (group focus) — prefix `/api/meetings`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/create?title=` | Create room; host auto-joins as participant |
+| `GET` | `/latest/available` | Preview newest joinable room |
+| `POST` | `/join-latest` | Join newest active room |
+| `POST` | `/join/{room_code}` | Join specific room |
+| `GET` | `/{room_code}` | Room preview metadata |
+| `GET` | `/{room_code}/state` | Full sync state (timer, participants, ready counts) |
+| `GET` | `/{room_code}/summary` | Post-session summary |
+| `GET` | `/{room_code}/participants` | Participant list with online/ready |
+| `POST` | `/{room_code}/start?duration_minutes=` | REST start (optional; host usually uses Socket.IO) |
+
+All meeting routes require `Authorization: Bearer <token>`.
+
+### Other APIs
+
+| Prefix | Purpose |
+|--------|---------|
+| `/api/auth` | Register, login, me, logout |
+| `/api/tasks` | Task CRUD + bulk |
+| `/api/sessions` | Solo focus lifecycle |
+| `/api/analytics` | Stats and charts |
+| `/api/achievements` | Badges |
+| `/api/settings` | User preferences + coach |
+
+Interactive docs: http://localhost:8000/docs
+
+---
+
+## ⚡ Socket.IO Events (real-time)
+
+Connect to the same origin as the API (Vite proxies `/socket.io` → `:8000` in dev).
+
+**Auth:** pass JWT in connection `auth: { token: "<focus_token>" }`
+
+| Event (client → server) | Payload | Description |
+|-------------------------|---------|-------------|
+| `join_room` | `{ room_code }` | Enter Socket.IO room; returns `sync` in ack |
+| `leave_room` | `{ room_code }` | Leave room |
+| `request_sync` | `{ room_code }` | Request full state (reconnect) |
+| `mark_ready` | `{ room_code, ready: bool }` | Toggle ready status |
+| `start_meeting` | `{ room_code, duration_minutes }` | Host only — start timer |
+| `pause_meeting` | `{ room_code }` | Host only |
+| `resume_meeting` | `{ room_code }` | Host only |
+
+| Event (server → client) | Description |
+|-------------------------|-------------|
+| `meeting_sync` | Full room state |
+| `meeting_started` | Session began |
+| `timer_tick` | `{ remaining_seconds, status }` every second |
+| `meeting_paused` / `meeting_resumed` | Host controls |
+| `meeting_completed` | Timer hit zero |
+| `participant_online` / `participant_offline` | Presence |
+| `ready_update` | Someone toggled ready |
 
 ---
 
 ## 🗄 Database Schema
 
+Core tables plus **group focus**:
+
 ```mermaid
 erDiagram
-    users ||--o{ tasks : creates
-    users ||--o{ subtasks : creates
     users ||--o{ focus_sessions : starts
+    users ||--o{ meetings : hosts
+    users ||--o{ meeting_participants : joins
+    meetings ||--o{ meeting_participants : has
+    meetings ||--o{ user_presence : tracks
+    users ||--o{ tasks : creates
     users ||--|| user_settings : configures
-    users ||--o{ achievements : earns
     users ||--|| streaks : maintains
-    tasks ||--o{ subtasks : contains
-    tasks ||--o{ focus_sessions : linked_to
-    focus_sessions ||--o{ session_notes : has
 
-    users {
+    meetings {
         int id PK
-        string name
-        string email
-        string hashed_password
-        datetime created_at
-    }
-
-    tasks {
-        int id PK
-        int user_id FK
         string title
-        text description
-        string priority
-        int estimated_minutes
+        string room_code UK
+        int host_id FK
         string status
-        text tags
-        text notes
-        datetime due_date
-        int sort_order
-        datetime created_at
-        datetime updated_at
-    }
-
-    subtasks {
-        int id PK
-        int user_id FK
-        int task_id FK
-        string title
-        text description
-        string priority
-        int estimated_minutes
-        string status
-        text tags
-        text notes
-        datetime due_date
-        int sort_order
-        datetime created_at
-        datetime updated_at
-    }
-
-    focus_sessions {
-        int id PK
-        int user_id FK
-        int task_id FK
-        string title
-        string goal
-        int planned_minutes
-        int actual_minutes
-        int pauses
-        string ambient_sound
-        int productivity_score
-        int mood
-        text notes
-        int xp_earned
-        boolean task_completed
-        string status
+        datetime meeting_start_time
+        int meeting_duration
+        int remaining_time
         datetime created_at
     }
 
-    streaks {
+    meeting_participants {
         int id PK
+        int meeting_id FK
         int user_id FK
-        int current_streak
-        int longest_streak
-        date last_session_date
+        boolean is_ready
+        datetime joined_at
     }
 
-    achievements {
+    user_presence {
         int id PK
+        int meeting_id FK
         int user_id FK
-        string badge_name
-        string description
-        datetime earned_at
-    }
-
-    user_settings {
-        int id PK
-        int user_id FK
-        int default_duration
-        string theme
-        boolean notifications_enabled
-        boolean auto_start_breaks
-        string preferred_sound
-        int sound_volume
-        int pomodoro_work
-        int pomodoro_break
-        boolean ai_coach_enabled
-    }
-
-    session_notes {
-        int id PK
-        int session_id FK
-        text content
-        datetime created_at
+        boolean connected
+        datetime last_seen
+        datetime joined_at
+        datetime left_at
     }
 ```
+
+Solo focus tables (`focus_sessions`, `tasks`, `streaks`, `achievements`, etc.) are unchanged. See `backend/app/models/` for full definitions.
 
 ---
 
@@ -545,83 +450,52 @@ erDiagram
 focus-sessions/
 ├── backend/
 │   ├── app/
-│   │   ├── api/                    # Route handlers
-│   │   │   ├── auth.py             # Auth endpoints
-│   │   │   ├── tasks.py            # Task CRUD + bulk + filters
-│   │   │   ├── sessions.py         # Session lifecycle endpoints
-│   │   │   ├── analytics.py        # Dashboard & charts data
-│   │   │   ├── achievements.py     # Badge endpoints
-│   │   │   ├── settings.py         # User settings + AI coach
-│   │   │   └── deps.py             # Auth dependencies
-│   │   ├── models/                 # SQLAlchemy ORM models
-│   │   │   ├── user.py
-│   │   │   ├── task.py
-│   │   │   ├── subtask.py
-│   │   │   ├── session.py
-│   │   │   ├── session_note.py
-│   │   │   ├── streak.py
-│   │   │   ├── achievement.py
+│   │   ├── api/
+│   │   │   ├── auth.py
+│   │   │   ├── tasks.py
+│   │   │   ├── sessions.py          # Solo focus
+│   │   │   ├── meetings.py          # Group rooms (REST)
+│   │   │   ├── sockets.py           # Group rooms (Socket.IO)
+│   │   │   ├── analytics.py
+│   │   │   ├── achievements.py
 │   │   │   └── settings.py
-│   │   ├── schemas/                # Pydantic request/response schemas
-│   │   ├── core/                   # Config, database, security
-│   │   ├── services/               # Business logic
-│   │   └── main.py                 # FastAPI app entry
-│   ├── alembic/                    # Database migrations
-│   ├── tests/                      # Backend tests
-│   ├── seed.py                     # Demo data seeder
-│   ├── requirements.txt
-│   └── .env
+│   │   ├── models/
+│   │   │   ├── meeting.py           # Meeting, MeetingParticipant
+│   │   │   ├── presence.py          # UserPresence
+│   │   │   └── ...
+│   │   ├── services/
+│   │   │   ├── meeting_sync.py      # Sync payload builder
+│   │   │   ├── timer_service.py     # Server-side group timer
+│   │   │   └── ...
+│   │   ├── core/
+│   │   │   ├── migrate.py           # Auto SQLite migrations
+│   │   │   └── ...
+│   │   └── main.py                  # FastAPI + Socket.IO ASGI
+│   └── requirements.txt
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/                  # Route page components
-│   │   │   ├── Landing.tsx         # Welcome/onboarding
-│   │   │   ├── Login.tsx           # Login form
-│   │   │   ├── Register.tsx        # Registration form
-│   │   │   ├── Dashboard.tsx       # Home dashboard
-│   │   │   ├── SessionSetup.tsx    # Configure focus session
-│   │   │   ├── FocusMode.tsx       # Active focus timer
-│   │   │   ├── BreakMode.tsx       # Break timer
-│   │   │   ├── SessionComplete.tsx # Post-session review
-│   │   │   ├── TaskManager.tsx     # Full task management
-│   │   │   ├── Analytics.tsx       # Charts & history
-│   │   │   ├── Achievements.tsx    # Badge gallery
-│   │   │   └── Settings.tsx        # User preferences
-│   │   ├── components/
-│   │   │   ├── layout/Layout.tsx   # Sidebar navigation + outlet
-│   │   │   ├── focus/
-│   │   │   │   ├── CountdownOverlay.tsx
-│   │   │   │   └── ProgressRing.tsx
-│   │   │   ├── AmbientSoundPlayer.tsx
-│   │   │   ├── MusicPlayer.tsx
-│   │   │   └── ProtectedRoute.tsx
-│   │   ├── store/
-│   │   │   ├── authStore.ts        # Auth state (Zustand)
-│   │   │   └── useAppStore.ts      # App state (Zustand)
-│   │   ├── services/api.ts         # Axios API client
-│   │   ├── hooks/useTimer.ts       # Timer hook
-│   │   ├── validation/schemas.ts   # Zod validation schemas
-│   │   ├── types/index.ts          # TypeScript interfaces
-│   │   ├── data/ambientSounds.ts   # Sound definitions
-│   │   ├── utils/helpers.ts        # Utility functions
-│   │   ├── index.css               # Design system + Tailwind
-│   │   ├── App.tsx                 # Router configuration
-│   │   └── main.tsx                # React entry point
-│   ├── __tests__/                  # Frontend tests
-│   ├── tailwind.config.js
-│   ├── vite.config.ts
-│   └── package.json
+│   │   ├── pages/
+│   │   │   ├── CreateMeeting.tsx
+│   │   │   ├── JoinMeeting.tsx
+│   │   │   ├── MeetingRoom.tsx
+│   │   │   ├── MeetingDashboard.tsx
+│   │   │   └── ...                  # Solo + core pages
+│   │   ├── components/meeting/
+│   │   │   └── MeetingPhaseBar.tsx
+│   │   ├── hooks/
+│   │   │   ├── useMeetingSocket.ts
+│   │   │   ├── useMeetingState.ts
+│   │   │   ├── useMeetingTimer.ts
+│   │   │   └── useParticipantPresence.ts
+│   │   ├── services/
+│   │   │   ├── api.ts               # meetingsApi included
+│   │   │   └── meetingService.ts
+│   │   └── utils/meetingUtils.ts
+│   └── vite.config.ts               # Proxies /api + /socket.io
 │
-├── docs/                           # Extended documentation
-│   ├── ARCHITECTURE.md
-│   ├── INSTALLATION.md
-│   ├── API.md
-│   └── USER_MANUAL.md
-│
-├── setup.cmd                       # One-click setup
-├── start.cmd                       # One-click start
-├── test-all.cmd                    # Run all tests
-├── build.cmd                       # Production build
+├── setup.cmd
+├── start.cmd
 └── README.md
 ```
 
@@ -631,14 +505,12 @@ focus-sessions/
 
 | Command | Description |
 |---------|-------------|
-| `setup.cmd` | Create venv, install deps, migrate DB, seed data |
-| `start.cmd` | Start backend + frontend and open browser |
-| `test-all.cmd` | Run backend + frontend tests and build |
-| `build.cmd` | Build frontend and verify backend imports |
-| `npm run dev` (in `frontend/`) | Frontend dev server (proxies `/api` → :8000) |
-| `npm run build` (in `frontend/`) | Production frontend build |
-| `npm run test` (in `frontend/`) | Vitest unit tests |
-| `pytest` (in `backend/`) | Backend tests |
+| `setup.cmd` | Venv, deps, DB migrate, seed |
+| `start.cmd` | Backend + frontend + open browser |
+| `test-all.cmd` | Run tests and build |
+| `build.cmd` | Production build |
+| `npm run dev` | Frontend dev server |
+| `uvicorn app.main:app --reload` | Backend with hot reload |
 
 ---
 
@@ -653,16 +525,24 @@ focus-sessions/
 
 ## 🎨 Design System
 
-The app uses a custom design system built on Tailwind CSS with CSS custom properties for theming:
+- **Themes:** Dark (default), Light (+ settings-driven variants)
+- **Typography:** DM Sans
+- **Components:** `btn-primary`, `btn-secondary`, `card`, `card-elevated`, `input-field`
+- **Group UX:** Phase bar, ready states, minimal mode, reconnect banner — kept calm and low-noise for ADHD users
 
-- **4 themes:** Dark (default), Light, Calm Blue, Forest Green
-- **Typography:** DM Sans font family
-- **Components:** `btn-primary`, `btn-secondary`, `btn-ghost`, `card`, `card-elevated`, `input-field`, `badge-*`, `alert-*`
-- **Animations:** Framer Motion for page transitions, layout animations, and micro-interactions
-- **Responsive:** Mobile-first design with collapsible sidebar navigation
+---
+
+## 🧪 Testing group focus locally
+
+1. Start backend + frontend.
+2. Browser A: register/login → **Host Room** → create → enter room.
+3. Browser B (incognito): register/login → **Join Latest** or paste invite link.
+4. B: tap **I'm ready**. A: see ready count → **Start session**.
+5. Confirm timer counts down on both browsers.
+6. Optional: toggle **minimal mode** (eye icon) on either client.
 
 ---
 
 <p align="center">
-  Built with 💜 for the ADHD community
+  Built with 💜 for the ADHD community — solo focus and quiet accountability together.
 </p>

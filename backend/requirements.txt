@@ -13,3 +13,4 @@ httpx==0.26.0
 pytest==7.4.4
 pytest-asyncio==0.23.4
 psycopg[binary]==3.2.3
+python-socketio==5.11.0
