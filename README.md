@@ -19,6 +19,19 @@
 - [Scripts](#-scripts)
 - [Documentation](#-documentation)
 
+- [Tech Stack](#tech-stack)
+- [Quick Start](#quick-start)
+- [Host and Join Meetings](#host-and-join-meetings)
+- [System Architecture](#system-architecture)
+- [Application Flows](#application-flows)
+- [Module-Wise Features](#module-wise-features)
+- [Backend API Reference](#backend-api-reference)
+- [Socket.IO Events (real-time)](#socketio-events-real-time)
+- [Database Tables](#database-tables)
+- [Project Structure](#project-structure)
+- [Scripts](#scripts)
+- [Documentation](#documentation)
+
 ---
 
 ## 🛠 Tech Stack
@@ -76,7 +89,7 @@ Startup runs `app/core/migrate.py` to create tables and patch SQLite columns.
 
 ---
 
-## 🧩 Host & Join Meetings
+## Host and Join Meetings
 
 1. Start backend and frontend.
 2. Log in (`demo@focus.local` / `demo1234` or register).
