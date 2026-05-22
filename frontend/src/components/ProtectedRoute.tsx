@@ -1,4 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom';
+import CoachChat from './coach/CoachChat';
 import { useAuthStore } from '../store/authStore';
 
 export default function ProtectedRoute() {
@@ -16,5 +17,10 @@ export default function ProtectedRoute() {
     return <Navigate to="/login" replace />;
   }
 
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <CoachChat />
+    </>
+  );
 }

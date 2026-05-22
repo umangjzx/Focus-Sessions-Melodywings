@@ -44,7 +44,13 @@ export default function SessionComplete() {
       });
       setUnlockedBadges(data.unlocked_achievements);
       await loadInitialData();
-      const coach = await settingsApi.coach('end');
+      const coach = await settingsApi.coach('end', {
+        page: 'complete',
+        planned_minutes: elapsed,
+        session_title: activeSession.title,
+        task_title: activeSession.taskTitle,
+        goal: activeSession.goal,
+      });
       setCoachMsg(coach.data.message);
     } finally {
       setSubmitting(false);

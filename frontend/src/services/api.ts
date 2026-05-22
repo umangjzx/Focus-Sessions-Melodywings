@@ -147,10 +147,39 @@ export const achievementsApi = {
   getAll: () => api.get<{ id: number; badge_name: string; description: string; earned_at: string }[]>('/achievements'),
 };
 
+export type CoachSource = 'ollama' | 'fallback' | 'disabled';
+
+export type CoachClientParams = {
+  page?: string;
+  planned_minutes?: number;
+  session_title?: string;
+  task_title?: string;
+  goal?: string;
+  in_focus_session?: boolean;
+};
+
 export const settingsApi = {
   get: () => api.get<Settings>('/settings'),
   update: (data: Partial<Settings>) => api.put<Settings>('/settings', data),
-  coach: (phase: string) => api.get<{ message: string }>(`/settings/coach/${phase}`),
+  coach: (phase: string, client?: CoachClientParams) =>
+    api.get<{ message: string; source?: CoachSource }>(`/settings/coach/${phase}`, {
+      params: client,
+    }),
+  coachStatus: () =>
+    api.get<{
+      ollama_enabled: boolean;
+      ollama_model: string;
+      ollama_base_url: string;
+      ollama_ready: boolean;
+    }>('/settings/coach/status'),
+  coachChat: (
+    messages: { role: 'user' | 'assistant'; content: string }[],
+    client?: CoachClientParams,
+  ) =>
+    api.post<{ message: string; source: CoachSource }>('/settings/coach/chat', {
+      messages,
+      client: client ?? undefined,
+    }),
 };
 
 export interface Meeting {

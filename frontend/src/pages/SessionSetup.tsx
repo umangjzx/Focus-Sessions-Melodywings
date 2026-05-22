@@ -9,6 +9,7 @@ import { tasksApi, sessionsApi, settingsApi } from '../services/api';
 import { AMBIENT_SOUNDS } from '../data/ambientSounds';
 import type { Task } from '../services/api';
 import { sessionSetupSchema, type SessionSetupValues } from '../validation/schemas';
+import { buildCoachClient } from '../utils/coachClient';
 
 const POMODORO_PRESETS = [
   { label: '25 / 5', work: 25, break: 5 },
@@ -47,12 +48,28 @@ export default function SessionSetup() {
   });
 
   const plannedMinutes = watch('planned_minutes');
+  const sessionTitle = watch('title');
+  const taskId = watch('task_id');
+  const sessionGoal = watch('goal');
   const autoBreak = watch('auto_start_breaks');
 
   useEffect(() => {
     tasksApi.getAll().then((r) => setTasks(r.data.filter((t) => t.status !== 'completed')));
-    settingsApi.coach('pre').then((r) => setCoachMsg(r.data.message));
   }, []);
+
+  useEffect(() => {
+    const taskTitle = taskId ? tasks.find((t) => t.id === taskId)?.title : undefined;
+    settingsApi
+      .coach('pre', buildCoachClient('/setup', {
+        page: 'setup',
+        planned_minutes: plannedMinutes,
+        session_title: sessionTitle || undefined,
+        task_title: taskTitle,
+        goal: sessionGoal || undefined,
+      }))
+      .then((r) => setCoachMsg(r.data.message))
+      .catch(() => {});
+  }, [plannedMinutes, sessionTitle, taskId, sessionGoal, tasks]);
 
   useEffect(() => {
     if (!settings) return;

@@ -64,6 +64,9 @@ export default function SettingsPage() {
           <span>AI focus coach</span>
           <input type="checkbox" checked={aiCoach} onChange={(e) => setAiCoach(e.target.checked)} className="accent-primary" />
         </label>
+        <p className="text-sm text-slate-400">
+          When enabled, use the <strong className="text-slate-300">chat button</strong> (bottom-right on any page) to talk with your coach.
+        </p>
         <motion.div>
           <label className="mb-2 block text-sm text-slate-300">Volume: {volume}%</label>
           <input type="range" min={0} max={100} value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="w-full accent-primary" />

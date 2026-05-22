@@ -292,10 +292,27 @@ Dashboard stats, weekly/monthly, heatmap.
 XP, levels, streaks, badges.  
 **API:** `/api/achievements`
 
-### 8. Settings
+### 8. Settings & AI coach
 
-Theme, defaults, sounds, coach toggle.  
-**API:** `/api/settings/*`
+Theme, defaults, sounds, **AI focus coach** toggle.  
+**API:** `/api/settings/*`, `GET /api/settings/coach/{phase}`, `GET /api/settings/coach/status`
+
+**AI coach** uses local **[Ollama](https://ollama.com/)** when running (default model: `qwen2.5-coder:7b`). If Ollama is off or unreachable, the app falls back to built-in motivational messages.
+
+```bash
+ollama pull qwen2.5-coder:7b
+ollama run qwen2.5-coder:7b    # keep Ollama running, or it starts on first request
+```
+
+Configure in `backend/.env`:
+
+```env
+OLLAMA_ENABLED=true
+OLLAMA_MODEL=qwen2.5-coder:7b
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+```
+
+Check status: `GET /api/settings/coach/status` → `ollama_ready: true`
 
 ### 9. Audio
 

@@ -5,6 +5,7 @@ import { Pause, Play, Square, Maximize, Volume2, VolumeX } from 'lucide-react';
 import { useTimer } from '../hooks/useTimer';
 import { useAppStore } from '../store/useAppStore';
 import { sessionsApi, settingsApi } from '../services/api';
+import { buildCoachClient } from '../utils/coachClient';
 import { formatTime, showNotification } from '../utils/helpers';
 import ProgressRing from '../components/focus/ProgressRing';
 import CountdownOverlay from '../components/focus/CountdownOverlay';
@@ -41,7 +42,10 @@ export default function FocusMode() {
 
   useEffect(() => {
     if (!activeSession) navigate('/setup');
-    settingsApi.coach('mid').then((r) => setQuote(r.data.message)).catch(() => {});
+    settingsApi
+      .coach('mid', buildCoachClient('/focus', { in_focus_session: true }))
+      .then((r) => setQuote(r.data.message))
+      .catch(() => {});
   }, [activeSession, navigate]);
 
   useEffect(() => {

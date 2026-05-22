@@ -33,7 +33,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     setIsLoading(true);
-    Promise.all([analyticsApi.dashboard(), analyticsApi.weekly(), settingsApi.coach('pre')])
+    Promise.all([
+      analyticsApi.dashboard(),
+      analyticsApi.weekly(),
+      settingsApi.coach('pre', { page: 'dashboard' }),
+    ])
       .then(([d, w, c]) => {
         setDashboard(d.data);
         setWeekly(w.data);
