@@ -8,6 +8,7 @@
 
 - [Tech Stack](#-tech-stack)
 - [Quick Start](#-quick-start)
+- [Host & Join Meetings](#-host--join-meetings)
 - [Architecture Overview](#-architecture-overview)
 - [Application Flow](#-application-flow)
 - [Module-Wise Features](#-module-wise-features)
@@ -78,6 +79,18 @@ npm run dev
 ```
 
 Open http://localhost:5173 — register, start a solo session, or host a group room.
+
+## 🧩 Host & Join Meetings
+
+Quick steps to try group focus locally:
+
+1. Start backend and frontend (see Quick Start).
+2. Register and log in with `demo@focus.local` / `demo1234` or your account.
+3. Go to `/create-meeting` (or click Create Room) and create a room.
+4. Copy the room code or invite link and open it in another browser/incognito.
+5. Join as a participant and tap "I'm ready". Host clicks "Start Focus Session" to begin.
+
+The seed script (`backend/seed.py`) inserts the demo user and example data if the DB is empty.
 
 ### PostgreSQL (optional)
 
@@ -339,15 +352,15 @@ graph TD
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/create?title=` | Create room; host auto-joins as participant |
-| `GET` | `/latest/available` | Preview newest joinable room |
-| `POST` | `/join-latest` | Join newest active room |
-| `POST` | `/join/{room_code}` | Join specific room |
-| `GET` | `/{room_code}` | Room preview metadata |
+| `POST` | `/create?title=` | Create room; host auto-joins as participant and receives preview data |
+| `GET` | `/latest/available` | Preview newest joinable room (if any) |
+| `POST` | `/join-latest` | Join the newest available active room |
+| `POST` | `/join/{room_code}` | Join a specific room by room code |
+| `GET` | `/{room_code}` | Room preview metadata (title, host, counts, status) |
 | `GET` | `/{room_code}/state` | Full sync state (timer, participants, ready counts) |
-| `GET` | `/{room_code}/summary` | Post-session summary |
-| `GET` | `/{room_code}/participants` | Participant list with online/ready |
-| `POST` | `/{room_code}/start?duration_minutes=` | REST start (optional; host usually uses Socket.IO) |
+| `GET` | `/{room_code}/summary` | Post-session summary (focused minutes, host, counts) |
+| `GET` | `/{room_code}/participants` | Participant list with online/ready flags |
+| `POST` | `/{room_code}/start?duration_minutes=` | Host-only: start the meeting; returns `started_at` and `remaining_seconds` |
 
 All meeting routes require `Authorization: Bearer <token>`.
 
@@ -476,10 +489,10 @@ focus-sessions/
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/
-│   │   │   ├── CreateMeeting.tsx
-│   │   │   ├── JoinMeeting.tsx
-│   │   │   ├── MeetingRoom.tsx
-│   │   │   ├── MeetingDashboard.tsx
+│   │   │   ├── CreateMeeting.jsx
+│   │   │   ├── JoinMeeting.jsx
+│   │   │   ├── MeetingRoom.jsx
+│   │   │   ├── MeetingDashboard.jsx
 │   │   │   └── ...                  # Solo + core pages
 │   │   ├── components/meeting/
 │   │   │   └── MeetingPhaseBar.tsx
