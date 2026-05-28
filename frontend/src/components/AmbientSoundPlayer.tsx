@@ -126,15 +126,15 @@ const AmbientSoundPlayer = React.memo(function AmbientSoundPlayer({
       >
         <Play className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
         <div className="text-left">
-          <p className="text-sm font-medium text-white">Tap to enable {label}</p>
-          <p className="text-xs text-slate-400">Browser requires a click to start audio</p>
+          <p className="text-sm font-medium text-text">Tap to enable {label}</p>
+          <p className="text-xs text-text-muted">Browser requires a click to start audio</p>
         </div>
       </button>
     );
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-slate-800/60 px-4 py-3">
+    <div className="flex items-center gap-3 rounded-2xl bg-surface-hover px-4 py-3">
       <button
         type="button"
         onClick={handleToggle}
@@ -144,15 +144,15 @@ const AmbientSoundPlayer = React.memo(function AmbientSoundPlayer({
         {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
       </button>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-white">{label}</p>
-        <p className="text-xs text-slate-500">
+        <p className="truncate text-sm font-medium text-text">{label}</p>
+        <p className="text-xs text-text-subtle">
           {isSessionPaused ? 'Paused with session' : isPlaying ? 'Playing' : 'Paused'}
         </p>
       </div>
       {isMuted ? (
-        <VolumeX className="h-4 w-4 text-slate-500" />
+        <VolumeX className="h-4 w-4 text-text-subtle" />
       ) : (
-        <Volume2 className="h-4 w-4 text-slate-500" />
+        <Volume2 className="h-4 w-4 text-text-subtle" />
       )}
     </div>
   );

@@ -24,19 +24,19 @@ export default function MeetingPhaseBar({ status }: { status: string }) {
                   ? 'bg-primary/25 text-primary'
                   : done
                     ? 'bg-emerald-500/15 text-emerald-400'
-                    : 'bg-slate-800/80 text-slate-500'
+                    : 'bg-surface-active text-text-subtle'
               }`}
             >
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  active ? 'bg-primary' : done ? 'bg-emerald-400' : 'bg-slate-600'
+                  active ? 'bg-primary' : done ? 'bg-emerald-400' : 'bg-border'
                 }`}
               />
               <span className="hidden sm:inline">{phase.label}</span>
             </div>
             {i < PHASES.length - 1 && (
               <div
-                className={`h-px w-4 sm:w-8 ${done ? 'bg-emerald-500/40' : 'bg-slate-700'}`}
+                className={`h-px w-4 sm:w-8 ${done ? 'bg-emerald-500/40' : 'bg-border'}`}
               />
             )}
           </div>

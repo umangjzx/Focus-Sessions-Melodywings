@@ -92,7 +92,7 @@ export default function FocusMode() {
 
   return (
     <motion.div 
-      className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 p-6 relative overflow-hidden"
+      className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[var(--color-bg)] via-[var(--color-bg-secondary)] to-[var(--color-bg)] p-6 relative overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >

@@ -128,11 +128,11 @@ export default function MeetingVideoCall({
     <div className="card-elevated space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="flex items-center gap-2 font-semibold text-white">
+          <h3 className="flex items-center gap-2 font-semibold text-text">
             <Video className="h-5 w-5 text-violet-400" />
             Optional video room
           </h3>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-text-muted">
             Camera and mic start off. Turn on only if you want face-to-face accountability.
           </p>
         </div>
@@ -157,7 +157,7 @@ export default function MeetingVideoCall({
 
       {open && (
         <>
-          <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+          <div className="flex flex-wrap gap-2 text-xs text-text-subtle">
             <span className="inline-flex items-center gap-1">
               <Mic className="h-3 w-3" /> Muted by default
             </span>
@@ -175,11 +175,11 @@ export default function MeetingVideoCall({
           {error && <p className="text-sm text-amber-400">{error}</p>}
 
           <div
-            className="relative overflow-hidden rounded-xl border border-slate-700 bg-slate-950"
+            className="relative overflow-hidden rounded-xl border border-border bg-[var(--color-bg)]"
             style={{ minHeight: 320 }}
           >
             {loading && (
-              <div className="absolute inset-0 flex items-center justify-center text-slate-400">
+              <div className="absolute inset-0 flex items-center justify-center text-text-muted">
                 Loading video…
               </div>
             )}

@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { User, Mail, Lock, UserPlus, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { registerSchema, type RegisterValues } from '../validation/schemas';
+import logoSvg from '../assets/logo.svg';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ export default function Register() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-950 to-slate-900 p-6">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg)] p-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -55,12 +56,12 @@ export default function Register() {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="inline-flex rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 p-4 mb-6"
+            className="inline-flex mb-6"
           >
-            <UserPlus className="h-8 w-8 text-primary" />
+            <img src={logoSvg} alt="MelodyWings" className="h-14 w-14" />
           </motion.div>
-          <h1 className="text-4xl font-bold text-text mb-2">Create Account</h1>
-          <p className="text-text-secondary">Join Focus Sessions and start mastering your focus</p>
+          <h1 className="text-3xl font-bold text-text mb-2">Create Account</h1>
+          <p className="text-text-muted">Join MelodyWings and start mastering your focus</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">

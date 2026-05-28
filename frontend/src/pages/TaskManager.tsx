@@ -21,7 +21,7 @@ const PRIORITY_CONFIG: Record<string, { color: string; border: string; bg: strin
 };
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: typeof Circle; label: string }> = {
-  todo: { color: 'text-slate-400', bg: 'bg-slate-500/15', icon: Circle, label: 'To Do' },
+  todo: { color: 'text-text-muted', bg: 'bg-surface-active', icon: Circle, label: 'To Do' },
   'in-progress': { color: 'text-blue-400', bg: 'bg-blue-500/15', icon: Loader2, label: 'In Progress' },
   completed: { color: 'text-emerald-400', bg: 'bg-emerald-500/15', icon: CheckCircle2, label: 'Done' },
 };
@@ -37,7 +37,7 @@ function getDueDateInfo(due: string | null) {
   if (diff === 0) return { label: 'Today', cls: 'text-amber-400 bg-amber-500/15' };
   if (diff === 1) return { label: 'Tomorrow', cls: 'text-amber-300 bg-amber-500/10' };
   if (diff <= 7) return { label: `${diff}d left`, cls: 'text-sky-400 bg-sky-500/15' };
-  return { label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), cls: 'text-slate-400 bg-slate-500/15' };
+  return { label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), cls: 'text-text-muted bg-surface-active' };
 }
 
 export default function TaskManager() {
@@ -299,7 +299,7 @@ export default function TaskManager() {
                     <div className="flex items-center gap-3 px-4 py-4 sm:px-5">
                       {/* Select checkbox */}
                       <input type="checkbox" checked={selected.has(task.id)} onChange={() => toggleSelect(task.id)}
-                        className="h-4 w-4 rounded border-border bg-slate-800 text-primary accent-primary cursor-pointer shrink-0" />
+                        className="h-4 w-4 rounded border-border bg-surface text-primary accent-primary cursor-pointer shrink-0" />
 
                       {/* Status button */}
                       <button type="button" onClick={() => toggleStatus(task)}
@@ -318,10 +318,10 @@ export default function TaskManager() {
                               onKeyDown={e => { if (e.key === 'Enter') saveTitle(task.id); if (e.key === 'Escape') setEditingId(null); }}
                               autoFocus />
                             <button type="button" onClick={() => saveTitle(task.id)} className="btn-ghost p-1 text-emerald-400"><Check className="h-4 w-4" /></button>
-                            <button type="button" onClick={() => setEditingId(null)} className="btn-ghost p-1 text-slate-400"><X className="h-4 w-4" /></button>
+                            <button type="button" onClick={() => setEditingId(null)} className="btn-ghost p-1 text-text-muted"><X className="h-4 w-4" /></button>
                           </div>
                         ) : (
-                          <p className={`font-medium truncate cursor-pointer hover:text-primary transition-colors ${task.status === 'completed' ? 'line-through text-slate-500' : 'text-text'}`}
+                          <p className={`font-medium truncate cursor-pointer hover:text-primary transition-colors ${task.status === 'completed' ? 'line-through text-text-subtle' : 'text-text'}`}
                             onClick={() => { setEditingId(task.id); setEditTitle(task.title); }}
                             title="Click to edit"
                           >{task.title}</p>
@@ -357,14 +357,14 @@ export default function TaskManager() {
                         <button type="button" onClick={() => { setEditingId(task.id); setEditTitle(task.title); }}
                           className="btn-icon" title="Edit"><Edit3 className="h-4 w-4" /></button>
                         <button type="button" onClick={() => deleteTask(task.id)}
-                          className="btn-icon text-slate-500 hover:text-rose-400" title="Delete"><Trash2 className="h-4 w-4" /></button>
+                          className="btn-icon text-text-subtle hover:text-rose-400" title="Delete"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </div>
 
                     {/* Subtask progress bar */}
                     {subs.length > 0 && (
                       <div className="px-5 pb-1">
-                        <div className="h-1 w-full rounded-full bg-slate-800 overflow-hidden">
+                        <div className="h-1 w-full rounded-full bg-surface-active overflow-hidden">
                           <motion.div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
                             initial={{ width: 0 }} animate={{ width: `${(subsDone / subs.length) * 100}%` }} transition={{ duration: 0.5 }} />
                         </div>
@@ -377,7 +377,7 @@ export default function TaskManager() {
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                           className="overflow-hidden border-t border-border"
                         >
-                          <div className="px-5 py-4 space-y-3 bg-slate-900/30">
+                          <div className="px-5 py-4 space-y-3 bg-surface-hover">
                             {task.description && (
                               <div>
                                 <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">Description</p>
@@ -412,14 +412,14 @@ export default function TaskManager() {
                                     const subSt = STATUS_CONFIG[sub.status] || STATUS_CONFIG.todo;
                                     const SubIcon = subSt.icon;
                                     return (
-                                      <li key={sub.id} className="flex items-center gap-3 rounded-lg bg-slate-800/50 px-3 py-2">
+                                      <li key={sub.id} className="flex items-center gap-3 rounded-lg bg-surface-active px-3 py-2">
                                         <button type="button" onClick={() => toggleStatus(sub)}
                                           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${subSt.bg} ${subSt.color} hover:scale-110 transition`}
                                         >
                                           <SubIcon className={`h-3.5 w-3.5 ${sub.status === 'in-progress' ? 'animate-spin' : ''}`} />
                                         </button>
-                                        <span className={`flex-1 text-sm truncate ${sub.status === 'completed' ? 'line-through text-slate-500' : 'text-text-secondary'}`}>{sub.title}</span>
-                                        <button type="button" onClick={() => deleteTask(sub.id)} className="text-slate-600 hover:text-rose-400 transition">
+                                        <span className={`flex-1 text-sm truncate ${sub.status === 'completed' ? 'line-through text-text-subtle' : 'text-text-secondary'}`}>{sub.title}</span>
+                                        <button type="button" onClick={() => deleteTask(sub.id)} className="text-text-subtle hover:text-rose-400 transition">
                                           <Trash2 className="h-3.5 w-3.5" />
                                         </button>
                                       </li>

@@ -82,7 +82,7 @@ def _build_user_prompt(phase: str, context: dict | None) -> str:
     return "\n\n".join(parts)
 
 
-def _ollama_generate(prompt: str) -> str | None:
+def _ollama_generate(prompt: str, context: dict | None = None) -> str | None:
     """Call Ollama /api/chat. Returns None if unavailable or on error."""
     if not settings.ollama_enabled:
         return None
@@ -268,7 +268,7 @@ def coach_message(phase: str, context: dict | None = None) -> CoachResult:
         phase = "pre"
 
     prompt = _build_user_prompt(phase, context)
-    llm_text = _ollama_generate(prompt)
+    llm_text = _ollama_generate(prompt, context)
     if llm_text:
         return CoachResult(message=llm_text, source="ollama")
 

@@ -35,7 +35,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  theme: 'dark',
+  theme: 'light',
   dashboard: null,
   settings: null,
   activeSession: null,
@@ -58,7 +58,7 @@ export const useAppStore = create<AppState>((set) => ({
       analyticsApi.dashboard(),
       settingsApi.get(),
     ]);
-    const theme = (settingsRes.data.theme === 'light' ? 'light' : 'dark') as AppTheme;
+    const theme = 'light' as AppTheme;
     document.documentElement.setAttribute('data-theme', theme);
     set({ dashboard: dashRes.data, settings: settingsRes.data, theme });
   },

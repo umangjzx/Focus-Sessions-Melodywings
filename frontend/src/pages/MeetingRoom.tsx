@@ -261,13 +261,13 @@ export default function MeetingRoom() {
         <div className="flex items-center gap-3">
           <Link
             to="/"
-            className="rounded-xl p-2 text-slate-400 hover:bg-slate-800 hover:text-white"
+            className="rounded-xl p-2 text-text-muted hover:bg-surface-hover hover:text-text"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-white">{meeting.title}</h1>
-            <p className="text-sm text-slate-400">
+            <h1 className="text-2xl font-bold text-text">{meeting.title}</h1>
+            <p className="text-sm text-text-muted">
               {isHost ? (
                 <span className="inline-flex items-center gap-1 text-amber-300">
                   <Crown className="h-3.5 w-3.5" /> Host
@@ -282,7 +282,7 @@ export default function MeetingRoom() {
           <button
             type="button"
             onClick={() => setMinimalMode((m) => !m)}
-            className="rounded-xl p-2 text-slate-400 hover:bg-slate-800 hover:text-white"
+            className="rounded-xl p-2 text-text-muted hover:bg-surface-hover hover:text-text"
             title={minimalMode ? 'Show details' : 'Minimal view'}
           >
             {minimalMode ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
@@ -305,14 +305,14 @@ export default function MeetingRoom() {
       <div className={minimalMode ? '' : 'grid gap-6 lg:grid-cols-3'}>
         <div className={`space-y-6 ${minimalMode ? '' : 'lg:col-span-2'}`}>
           <div className="card-elevated text-center">
-            <p className="mb-2 text-sm text-slate-400">
+            <p className="mb-2 text-sm text-text-muted">
               {phase === 'focus' ? 'Focus together' : phase === 'paused' ? 'Paused' : phase === 'done' ? 'Complete' : 'Waiting to start'}
             </p>
             <div className="font-mono text-6xl font-bold text-primary">
               {isWaiting ? '— : —' : formatTimer(remainingSeconds)}
             </div>
             {!isWaiting && phase === 'focus' && (
-              <p className="mt-2 text-xs text-slate-500">Stay present — you&apos;ve got this</p>
+              <p className="mt-2 text-xs text-text-subtle">Stay present — you&apos;ve got this</p>
             )}
             {isHost && minimalMode && displayStatus !== 'COMPLETED' && (
               <button
@@ -329,11 +329,11 @@ export default function MeetingRoom() {
 
           {isHost && !minimalMode && (
             <div className="card-elevated">
-              <h3 className="mb-3 flex items-center gap-2 font-semibold text-white">
+              <h3 className="mb-3 flex items-center gap-2 font-semibold text-text">
                 <Crown className="h-5 w-5 text-amber-400" />
                 Host controls
               </h3>
-              <p className="mb-4 text-sm text-slate-400">
+              <p className="mb-4 text-sm text-text-muted">
                 {onlineCount} online · {readyCount}/{participants.length} ready
               </p>
 
@@ -348,7 +348,7 @@ export default function MeetingRoom() {
                         className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
                           durationMin === m
                             ? 'bg-primary text-white'
-                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                            : 'bg-surface-active text-text-secondary hover:bg-surface-hover'
                         }`}
                       >
                         {m} min
@@ -382,7 +382,7 @@ export default function MeetingRoom() {
                 </button>
               )}
 
-              <div className="mt-4 border-t border-slate-700/80 pt-4">
+              <div className="mt-4 border-t border-border pt-4">
                 <button
                   type="button"
                   onClick={handleEndSession}
@@ -396,7 +396,7 @@ export default function MeetingRoom() {
                       ? 'End room for everyone'
                       : 'End session for everyone'}
                 </button>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-text-subtle">
                   Only you as host can end the room. Everyone goes to the session summary.
                 </p>
               </div>
@@ -413,7 +413,7 @@ export default function MeetingRoom() {
 
           {!isHost && isWaiting && (
             <div className="card-elevated space-y-4 text-center">
-              <p className="text-slate-300">
+              <p className="text-text-secondary">
                 Mark yourself ready when you&apos;re set. The host will start the timer.
               </p>
               <button
@@ -428,7 +428,7 @@ export default function MeetingRoom() {
                 <CheckCircle2 className="h-5 w-5" />
                 {myReady ? "I'm ready ✓" : "I'm ready"}
               </button>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-text-subtle">
                 {readyCount} of {participants.length} people ready
               </p>
             </div>
@@ -441,7 +441,7 @@ export default function MeetingRoom() {
               className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm transition ${
                 myReady
                   ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                  : 'border-slate-600 text-slate-400 hover:border-slate-500'
+                  : 'border-border text-text-muted hover:border-border-light'
               }`}
             >
               <CheckCircle2 className="h-4 w-4" />
@@ -452,20 +452,20 @@ export default function MeetingRoom() {
 
         {!minimalMode && (
           <div className="card-elevated h-fit">
-            <h3 className="mb-4 flex items-center gap-2 font-semibold text-white">
+            <h3 className="mb-4 flex items-center gap-2 font-semibold text-text">
               <Users className="h-5 w-5 text-primary" />
               People ({participants.length})
             </h3>
 
             <div className="mb-3 space-y-2">
-              <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-900/80 p-3 font-mono text-sm">
+              <div className="flex items-center justify-between gap-2 rounded-xl bg-surface-hover p-3 font-mono text-sm">
                 <span>
                   Code: <strong className="text-primary">{code}</strong>
                 </span>
                 <button
                   type="button"
                   onClick={copyCode}
-                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-700"
+                  className="rounded-lg p-2 text-text-muted hover:bg-surface-active"
                   title="Copy code"
                 >
                   <Copy className="h-4 w-4" />
@@ -491,9 +491,9 @@ export default function MeetingRoom() {
               {participants.map((p) => (
                 <li
                   key={p.id}
-                  className="flex items-center justify-between rounded-lg bg-slate-800/50 px-3 py-2"
+                  className="flex items-center justify-between rounded-lg bg-surface-hover px-3 py-2"
                 >
-                  <span className={p.online ? 'text-slate-200' : 'text-slate-500'}>
+                  <span className={p.online ? 'text-text' : 'text-text-subtle'}>
                     {p.name}
                     {p.is_host && (
                       <Crown className="ml-1.5 inline h-3.5 w-3.5 text-amber-400" />
@@ -503,7 +503,7 @@ export default function MeetingRoom() {
                     )}
                   </span>
                   <span
-                    className={`h-2 w-2 rounded-full ${p.online ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                    className={`h-2 w-2 rounded-full ${p.online ? 'bg-emerald-500' : 'bg-surface-active'}`}
                   />
                 </li>
               ))}

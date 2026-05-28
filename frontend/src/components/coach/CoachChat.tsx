@@ -120,14 +120,14 @@ export default function CoachChat() {
             initial={{ opacity: 0, y: 16, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
-            className="flex h-[min(520px,70vh)] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-slate-600/80 bg-slate-900/98 shadow-2xl backdrop-blur-md"
+            className="flex h-[min(520px,70vh)] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl backdrop-blur-md"
           >
-            <header className="flex items-center justify-between border-b border-slate-700/80 px-4 py-3">
+            <header className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
                 <div>
-                  <p className="text-sm font-semibold text-white">Focus coach</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-sm font-semibold text-text">Focus coach</p>
+                  <p className="text-xs text-text-muted">
                     {!coachEnabled
                       ? 'Disabled in settings'
                       : ollamaReady === null
@@ -141,7 +141,7 @@ export default function CoachChat() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="btn-icon text-slate-400"
+                className="btn-icon text-text-muted"
                 aria-label="Close coach chat"
               >
                 <X className="h-5 w-5" />
@@ -158,19 +158,19 @@ export default function CoachChat() {
                     className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
                       m.role === 'user'
                         ? 'bg-primary text-white'
-                        : 'bg-slate-800 text-slate-200'
+                        : 'bg-surface-hover text-text-secondary'
                     }`}
                   >
                     {m.content}
                   </div>
                 </div>
               ))}
-              {loading && <p className="text-xs text-slate-500">Coach is thinking…</p>}
+              {loading && <p className="text-xs text-text-subtle">Coach is thinking…</p>}
               <div ref={bottomRef} />
             </div>
 
             {!coachEnabled ? (
-              <div className="border-t border-slate-700/80 px-4 py-3 text-center text-sm text-slate-400">
+              <div className="border-t border-border px-4 py-3 text-center text-sm text-text-muted">
                 Enable{' '}
                 <button
                   type="button"
@@ -183,7 +183,7 @@ export default function CoachChat() {
               </div>
             ) : (
               <form
-                className="flex gap-2 border-t border-slate-700/80 p-3"
+                className="flex gap-2 border-t border-border p-3"
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleSend();

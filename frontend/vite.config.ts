@@ -9,13 +9,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Focus Sessions',
-        short_name: 'Focus',
-        description: 'ADHD-friendly focus web application',
+        name: 'MelodyWings Focus Sessions',
+        short_name: 'MelodyWings',
+        description: 'ADHD-friendly focus web application by MelodyWings',
         theme_color: '#0f172a',
         icons: [
           {
-            src: 'https://vitejs.dev/logo.svg', // Placeholder for now
+            src: '/favicon.svg',
             sizes: '192x192',
             type: 'image/svg+xml'
           }

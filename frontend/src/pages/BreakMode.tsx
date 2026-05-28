@@ -37,14 +37,14 @@ export default function BreakMode() {
   const Tip = TIPS[tipIndex];
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-emerald-950/40 via-slate-900 to-slate-950 p-6">
-      <p className="text-sm uppercase tracking-widest text-emerald-400">Break time</p>
-      <p className="mt-4 text-7xl font-bold tabular-nums text-white">{formatTime(timer.timeRemaining)}</p>
-      <p className="mt-4 text-xl text-slate-300">Rest your mind. You earned this.</p>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-emerald-50 via-[var(--color-bg)] to-[var(--color-bg)] p-6">
+      <p className="text-sm uppercase tracking-widest text-emerald-500">Break time</p>
+      <p className="mt-4 text-7xl font-bold tabular-nums text-text">{formatTime(timer.timeRemaining)}</p>
+      <p className="mt-4 text-xl text-text-secondary">Rest your mind. You earned this.</p>
 
       <motion.div key={tipIndex} className="card mt-12 flex max-w-md items-start gap-4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-        <Tip.icon className="h-8 w-8 shrink-0 text-emerald-400" />
-        <p className="text-lg text-slate-200">{Tip.text}</p>
+        <Tip.icon className="h-8 w-8 shrink-0 text-emerald-500" />
+        <p className="text-lg text-text-secondary">{Tip.text}</p>
       </motion.div>
 
       <button type="button" className="btn-primary mt-10" onClick={() => navigate('/focus')}>

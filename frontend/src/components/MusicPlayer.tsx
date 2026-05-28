@@ -74,16 +74,16 @@ const MusicPlayer = React.memo(function MusicPlayer({ trackId = 'lofi', volume =
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-slate-800/60 px-4 py-3">
+    <div className="flex items-center gap-3 rounded-2xl bg-surface-hover px-4 py-3">
       <button type="button" onClick={() => setPlaying(!playing)} className="text-primary hover:scale-105 transition-transform">
         {playing ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
       </button>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-white">{title}</p>
-        <p className="text-xs text-slate-500">Melody Wings</p>
+        <p className="truncate text-sm font-medium text-text">{title}</p>
+        <p className="text-xs text-text-subtle">Melody Wings</p>
       </div>
-      <Volume2 className="h-4 w-4 text-slate-500" />
-      <button type="button" onClick={toggleFavorite} className={`${favorited ? 'text-red-400' : 'text-slate-500'} hover:scale-105 transition-transform`}>
+      <Volume2 className="h-4 w-4 text-text-subtle" />
+      <button type="button" onClick={toggleFavorite} className={`${favorited ? 'text-red-400' : 'text-text-subtle'} hover:scale-105 transition-transform`}>
         <Heart className={`h-5 w-5 ${favorited ? 'fill-current' : ''}`} />
       </button>
     </div>

@@ -94,32 +94,32 @@ export default function JoinMeeting() {
           <Users className="h-4 w-4" />
           Join as participant
         </div>
-        <h1 className="text-3xl font-bold text-white">Join a Focus Room</h1>
-        <p className="mt-2 text-slate-400">
+        <h1 className="text-3xl font-bold text-text">Join a Focus Room</h1>
+        <p className="mt-2 text-text-muted">
           See what you&apos;re joining before you enter. No surprises.
         </p>
       </div>
 
       <div className="card-elevated space-y-4">
-        <h2 className="flex items-center gap-2 font-semibold text-white">
-          <Radio className="h-5 w-5 text-emerald-400" />
+        <h2 className="flex items-center gap-2 font-semibold text-text">
+          <Radio className="h-5 w-5 text-emerald-500" />
           Latest available room
         </h2>
 
         {loadingLatest ? (
-          <div className="flex items-center gap-2 text-slate-400">
+          <div className="flex items-center gap-2 text-text-muted">
             <Loader2 className="h-4 w-4 animate-spin" />
             Checking for active rooms…
           </div>
         ) : latest ? (
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-            <p className="font-semibold text-white">{latest.title}</p>
-            <p className="mt-1 text-sm text-slate-400">{previewLine(latest)}</p>
+            <p className="font-semibold text-text">{latest.title}</p>
+            <p className="mt-1 text-sm text-text-muted">{previewLine(latest)}</p>
             <p className="mt-2 font-mono text-primary">{latest.room_code}</p>
-            <p className="mt-1 text-xs uppercase text-slate-500">{latest.status}</p>
+            <p className="mt-1 text-xs uppercase text-text-subtle">{latest.status}</p>
           </div>
         ) : (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-text-subtle">
             No active rooms yet. Ask someone to host, or use a code below.
           </p>
         )}
@@ -136,9 +136,9 @@ export default function JoinMeeting() {
       </div>
 
       <form onSubmit={handleJoinByCode} className="card-elevated space-y-5">
-        <p className="text-sm font-medium text-slate-300">Or join with a specific code</p>
+        <p className="text-sm font-medium text-text-secondary">Or join with a specific code</p>
         <div>
-          <label htmlFor="room-code" className="mb-2 block text-sm font-medium text-slate-300">
+          <label htmlFor="room-code" className="mb-2 block text-sm font-medium text-text-secondary">
             Room code
           </label>
           <input
@@ -157,8 +157,8 @@ export default function JoinMeeting() {
           Join with code
         </button>
 
-        <p className="text-center text-sm text-slate-500">
-          <Link to="/create-meeting" className="inline-flex items-center gap-1 text-amber-300 hover:underline">
+        <p className="text-center text-sm text-text-subtle">
+          <Link to="/create-meeting" className="inline-flex items-center gap-1 text-amber-600 hover:underline">
             <Crown className="h-3.5 w-3.5" />
             Create a room as host
           </Link>

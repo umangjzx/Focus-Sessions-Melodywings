@@ -27,7 +27,7 @@ export default function ProgressRing({
           fill="none"
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-slate-700/50"
+          className="text-border"
         />
         <motion.circle
           cx={size / 2}

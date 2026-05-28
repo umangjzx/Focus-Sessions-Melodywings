@@ -33,37 +33,37 @@ export default function MeetingDashboard() {
     >
       <div className="card-elevated text-center">
         <Trophy className="mx-auto h-16 w-16 text-amber-400" />
-        <h2 className="mt-4 text-3xl font-bold text-white">Nice work, team!</h2>
+        <h2 className="mt-4 text-3xl font-bold text-text">Nice work, team!</h2>
         {summary ? (
-          <p className="mt-3 text-lg text-slate-300">
-            You focused together in <strong className="text-white">{summary.title}</strong>
+          <p className="mt-3 text-lg text-text-secondary">
+            You focused together in <strong className="text-text">{summary.title}</strong>
           </p>
         ) : (
-          <p className="mt-3 text-slate-400">
+          <p className="mt-3 text-text-muted">
             Room <span className="font-mono text-primary">{roomCode}</span> session complete.
           </p>
         )}
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-xl bg-slate-800/50 p-4">
+          <div className="rounded-xl bg-surface-hover p-4">
             <Clock className="mx-auto mb-2 h-6 w-6 text-primary" />
-            <p className="text-2xl font-bold text-white">{minutes} min</p>
-            <p className="text-xs text-slate-500">Focus block</p>
+            <p className="text-2xl font-bold text-text">{minutes} min</p>
+            <p className="text-xs text-text-subtle">Focus block</p>
           </div>
-          <div className="rounded-xl bg-slate-800/50 p-4">
-            <Users className="mx-auto mb-2 h-6 w-6 text-emerald-400" />
-            <p className="text-2xl font-bold text-white">
+          <div className="rounded-xl bg-surface-hover p-4">
+            <Users className="mx-auto mb-2 h-6 w-6 text-emerald-500" />
+            <p className="text-2xl font-bold text-text">
               {summary?.participant_count ?? '—'}
             </p>
-            <p className="text-xs text-slate-500">People in room</p>
+            <p className="text-xs text-text-subtle">People in room</p>
           </div>
         </div>
 
         {summary?.host_name && (
-          <p className="mt-4 text-sm text-slate-500">Hosted by {summary.host_name}</p>
+          <p className="mt-4 text-sm text-text-subtle">Hosted by {summary.host_name}</p>
         )}
 
-        <p className="mt-6 text-sm italic text-slate-400">
+        <p className="mt-6 text-sm italic text-text-muted">
           Take a short break. Hydrate, stretch, breathe.
         </p>
 
@@ -82,7 +82,7 @@ export default function MeetingDashboard() {
           </button>
         </div>
 
-        <p className="mt-6 text-sm text-slate-500">
+        <p className="mt-6 text-sm text-text-subtle">
           <Link to="/join-meeting" className="text-primary hover:underline">
             Join a different room
           </Link>

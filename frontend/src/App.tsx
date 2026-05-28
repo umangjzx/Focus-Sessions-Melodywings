@@ -28,7 +28,7 @@ const SettingsPage = lazy(() => import('./pages/Settings'));
 const MeetingDashboard = lazy(() => import('./pages/MeetingDashboard'));
 
 const LoadingFallback = () => (
-  <div className="flex h-screen w-full items-center justify-center bg-slate-950">
+  <div className="flex h-screen w-full items-center justify-center bg-[var(--color-bg)]">
     <div className="flex flex-col items-center gap-4">
       <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
       <p className="text-text-muted font-medium">Loading...</p>
