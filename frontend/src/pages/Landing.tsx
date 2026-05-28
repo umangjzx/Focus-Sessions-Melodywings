@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Brain, Timer, Trophy, Sparkles } from 'lucide-react';
-import logoSvg from '../assets/logo.svg';
+import logoSvg from '../assets/unnamed.png';
 
 export default function Landing() {
   return (

@@ -7,7 +7,7 @@ import { Mail, Lock, LogIn } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../services/api';
 import { loginSchema, type LoginValues } from '../validation/schemas';
-import logoSvg from '../assets/logo.svg';
+import logoSvg from '../assets/unnamed.png';
 
 export default function Login() {
   const navigate = useNavigate();

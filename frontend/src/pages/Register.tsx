@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { User, Mail, Lock, UserPlus, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { registerSchema, type RegisterValues } from '../validation/schemas';
-import logoSvg from '../assets/logo.svg';
+import logoSvg from '../assets/unnamed.png';
 
 export default function Register() {
   const navigate = useNavigate();
